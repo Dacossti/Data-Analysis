@@ -21,7 +21,7 @@
 ---
 
 
-# 📊 Socio-Economic Analysis of French Departments (rapport, p. 117)
+# 📊 Socio-Economic Analysis of French Departments
 **PCA & Clustering (Hierarchical + K-means)**
 
 ## Main project Overview
@@ -122,7 +122,7 @@ All figures are available in `reports/figures/`.
 
 ---
 
-## 🧠 Personal Practice & Post-Course Work
+## 🧠 Additional Practice & Post-Course Work
 
 Beyond the main project, this repository also contains **personal work completed after the course**, aimed at reinforcing and extending the concepts seen in class.
 
