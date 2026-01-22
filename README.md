@@ -21,10 +21,12 @@
 ---
 
 
-# 📊 Socio-Economic Analysis of French Departments  
+# 📊 Socio-Economic Analysis of French Departments (rapport, p. 117)
 **PCA & Clustering (Hierarchical + K-means)**
 
-## Main project Overview (rapport, p. 117)
+## Main project Overview
+
+[See report (pp. 121–137)](report/report.pdf)
 
 This project explores the **socio-economic structure of French departments** using **multivariate data analysis techniques**.
 
@@ -80,7 +82,6 @@ The objective is to **identify homogeneous groups of departments** and provide a
 ### 3️⃣ Principal Component Analysis (PCA)
 - Eigenvalue analysis (Kaiser criterion)
 - Scree plot (elbow method)
-- Retention of **3 principal components (75.9% variance explained)**
 - Interpretation of axes, variables, and individuals
 
 ### 4️⃣ Clustering
@@ -118,17 +119,6 @@ The objective is to **identify homogeneous groups of departments** and provide a
 
 All figures are available in `reports/figures/`.
 
----
-
-## ▶️ How to Reproduce the Analysis
-
-```r
-# Install required packages
-install.packages(c(
-  "FactoMineR", "factoextra", "ggplot2",
-  "ggrepel", "dplyr", "cluster"
-))
-```
 
 ---
 
