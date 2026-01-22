@@ -1,0 +1,9 @@
+R >= 4.2
+FactoMineR
+factoextra
+ggplot2
+ggrepel
+dplyr
+cluster
+knitr
+rmarkdown

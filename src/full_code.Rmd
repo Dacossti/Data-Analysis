@@ -1,0 +1,3625 @@
+---
+title: "Analyse de Données"
+subtitle: "Rapport"
+author: "Stave Icnel Dany OSIAS"
+date: 2025-12-05
+lang: fr
+
+format:
+  html:
+    toc: true
+    theme: flatly
+    number-sections: false
+    code-fold: false
+    code-line-numbers: true
+    highlight-style: tango
+    css: style.css
+
+  pdf:
+    pdf-engine: xelatex
+    number-sections: false
+    toc: true
+    toc-depth: 2
+    lof: false
+    lot: true
+    fontsize: 10pt
+    linestretch: 1
+    papersize: a4
+    documentclass: scrreprt
+
+    include-in-header:
+      text: |
+        \usepackage{xurl}
+        \usepackage{microtype}
+        \usepackage{enumitem}
+        \setlist[itemize]{label=\textbullet}
+        \emergencystretch=2em
+        \sloppy
+        \setlength{\parindent}{1em}
+        \setlength{\parskip}{0.2em}
+
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+              breaklines=true,
+              breakanywhere=true,
+              breaksymbolleft=,
+              breakindent=0pt,
+              commandchars=\\\{\},
+              xleftmargin=0em,
+              xrightmargin=0em
+          }
+        \fvset{fontsize=\small}
+
+        \usepackage[most]{tcolorbox}
+        \tcbuselibrary{listings,skins}
+        \newtcblisting{pythoncode}{
+            listing only,
+            listing engine=listings,
+            colback=white,
+            colframe=black,
+            sharp corners,
+            enhanced,
+            breakable,
+            boxrule=0.3mm,
+            left=2mm,
+            right=2mm,
+            top=1mm,
+            bottom=1mm,
+            listing options={
+              basicstyle=\ttfamily\small,
+              breaklines=true,
+              breakatwhitespace=true,
+              showstringspaces=false
+            }
+        }
+
+        \usepackage{fontspec}
+        \usepackage{indentfirst}
+        \usepackage{float}
+        \floatplacement{figure}{H}
+        \usepackage{amssymb}
+        \usepackage{titlesec}
+        \usepackage{xcolor}
+
+        % Définir couleur bleu marine pour les titres
+        \definecolor{navyblue}{RGB}{0,0,128}
+
+        % Map # to chapters, allow them to start on same page
+        \titleclass{\chapter}{straight}
+        \titleclass{\section}{straight}
+        \titleclass{\subsection}{straight}
+        \titleclass{\subsubsection}{straight}
+
+        % Autoriser les chapitres à commencer sur la même page
+        \KOMAoptions{open=any,toc=flat}
+
+        % Numérotation des sections/subsections
+        \setcounter{secnumdepth}{0}
+
+        % Hyperref pour liens colorés dans TOC/LOF/LOT
+        \usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+
+        % Définir polices pour les titres
+        \setkomafont{chapter}{\normalfont\bfseries}
+        \setkomafont{section}{\normalfont\bfseries}
+        \setkomafont{subsection}{\normalfont\bfseries}
+        \setkomafont{subsubsection}{\normalfont\bfseries}
+
+        % Title formatting, spacing, and color
+        \titleformat{\chapter}[hang]{\normalfont\Large\bfseries\color{navyblue}}{\thechapter}{1em}{}
+        \titlespacing*{\chapter}{0pt}{1.5ex plus .2ex minus .2ex}{1ex}
+
+        \titleformat{\section}[hang]{\normalfont\large\bfseries\color{navyblue}}{\thesection}{1em}{}
+        \titlespacing*{\section}{0pt}{1.25ex plus .2ex minus .2ex}{0.8ex}
+
+        \titleformat{\subsection}[hang]{\normalfont\normalsize\bfseries\color{navyblue}}{\thesubsection}{1em}{}
+        \titlespacing*{\subsection}{0pt}{1ex plus .2ex minus .2ex}{0.7ex}
+
+    mainfont: PT Serif
+    romanfont: PT Serif
+    sansfont: PT Sans
+    monofont: PT Mono
+    mainfontoptions:
+      - Ligatures=TeX
+    monofontoptions:
+      - Scale=0.9
+
+execute:
+  enabled: true
+  echo: false
+
+# localized captions
+figureTitle: "Fig."
+tableTitle: "Tableau"
+listingTitle: "Listing"
+lofTitle: "Liste de Figures"
+lotTitle: "Liste de tableaux"
+tocTitle: "Table des matières"
+lolTitle: "Listings"
+
+polyglossia-lang:
+  name: french
+---
+::: {.unnumbered}
+\clearpage
+:::
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(kableExtra)
+
+knitr::opts_chunk$set(
+  echo = FALSE,    # cache le code
+  message = FALSE, # cache les messages
+  warning = FALSE, # cache les warnings
+  fig.align = "center" # option pratique pour centrer les graphiques
+)
+
+# fonction utilitaire pour afficher mes tableaux 
+#print.table <- function(){}
+
+
+# fonction utilitaire pour afficher mes résumés statistiques (summary) dans mon pdf 
+print.summary <- function(s=NULL, df=NULL, caption = "Résumé statistique", digits = 2) {
+  
+  # summary d'une variable numérique
+  if(is.numeric(s)) {
+    df_summary <- data.frame(
+      Statistique = names(s),
+      Valeur = round(as.numeric(s), digits),
+      stringsAsFactors = FALSE
+    )
+    print(
+      kable(df_summary, caption = caption) %>%
+        kable_styling(full_width = FALSE, position = "center")
+    )
+    
+  # Cas 2 : summary d'un jeu de donnees avec des variables numériques
+  } else {
+    for(var in names(df)) {
+      print.summary(summary(df[[var]]), caption = paste("Résumé statistique de", var))
+    }
+  }
+}
+
+# fonction utilitaire pour afficher la structure de mes données (str) dans mon pdf
+print.str <- function(x, caption = "Structure des données") {
+  
+  # capturer la sortie texte de str()
+  s <- capture.output(str(x))
+  
+  # lignes correspondant aux variables
+  vars <- s[grepl("^ \\$", s)]
+  
+  # extraction des infos
+  df_str <- data.frame(
+    Variable = sub("^ \\$ ([^:]+):.*", "\\1", vars),
+    Type = sub("^.*: ([^ ]+).*", "\\1", vars),
+    Aperçu = sub("^.*?  ", "", vars),
+    stringsAsFactors = FALSE
+  )
+  
+  # affichage
+  kable(
+    df_str,
+    caption = caption,
+    col.names = c("Variable", "Type", "Valeurs")
+  ) %>%
+    kable_styling(
+      full_width = FALSE,
+      position = "center",
+      bootstrap_options = c("striped", "hover", "condensed")
+    )
+}
+
+
+
+
+
+```
+
+###################################
+# Travail personnel 1
+###################################
+
+
+## Exercice 13.1 Données `Poids_naissance`
+Chargeons les données `Poids_naissance` et donnons un aperçu de la matrice des données:
+
+```{r}
+poids_naissance <- read.table("Poids_naissance.txt", header = TRUE, sep=";")
+
+# matrice des données
+data_matrix <- as.matrix(poids_naissance)
+kable(head(data_matrix), caption ="Aperçu des données `Poids_naissance`")
+```
+
+
+## Exercice 13.2 Conversion en même unité (`kg`)
+
+Le poids des mères étant exprimé en `livres`, nous effectuons une transformation des données pour recoder cette variable en `kilogrammes` (1 livre = 0.45359237 kg).
+
+Nous convertissons aussi le poids des bébés en kg pour avoir la même unité.
+
+```{r}
+# Convertissons le poids des mères en kg
+poids_naissance$LWT <- poids_naissance$LWT * 0.45359237
+kable(head(poids_naissance), caption ="Aperçu après conversion du poids des mères")
+
+# Convertissons aussi le poids des bébés en kg pour avoir la même unité
+poids_naissance$BWT <- poids_naissance$BWT / 1000
+kable(head(poids_naissance), caption ="Aperçu après conversion du poids des bébés")
+
+```
+
+
+## Exercice 13.3 Tris à plat
+
+Extrayons les variables.
+
+On va d'abord classifier nos variables selon leurs types.
+
+Ensuite, on fera des tris à plat que sur nos variables catégorielles et nos variables numériques discrètes. 
+
+Et pour nos variables numériques continues, on affichera les paramètres statistiques de base avec `summary`.
+
+```{r summary1, results='asis'}
+# variables catégorielles et variables numériques discrètes
+cat_vars <- c("RACE", "SMOKE", "HT", "UI", "LOW")
+
+num_disc_vars <- c("PTL", "FVT")
+
+
+# tris à plat
+for (var in c(cat_vars, num_disc_vars))
+{
+  t <- as.data.frame(table(poids_naissance[[var]]))            # tri à plat
+  
+  # affichage avec kable (*pour le pdf)
+  print(kable(
+    setNames(t, c("Modalités", "Effectifs")),               
+    caption = paste("Tri à plat de la variable", var)
+  ))
+}
+
+# résumés statistiques de base avec summary
+
+num_cont_vars <- c("AGE", "LWT", "BWT")
+
+for (var in num_cont_vars)
+{
+  s <- summary(poids_naissance[[var]])                          # résumé statistique
+  class(s)
+  
+  # affichage
+  print.summary(s, caption = paste("Résumé statistique de la variable", var))
+}
+
+```
+
+
+## Exercice 14.1 Données `acteurs` 
+
+Créons le tableau de données `acteurs`:
+```{r}
+
+acteurs <- data.frame(
+  Mort.à = c(93, 53, 72, 68, 68, 53),             
+  Années.de.carrière = c(66, 25, 48, 37, 31, 32),
+  Nombre.de.films = c(211, 58, 98, 140, 74, 81),
+  Prénom = c("Michel", "André", "Jean", "Louis", "Lino", "Jacques"),
+  Nom = c("Galabru", "Raimbourg", "Gabin", "De Funès", "Ventura", "Villeret"),
+  Date.du.décès = c("04-01-2016", "23-09-1970", "15-10-1976", 
+                            "27-01-1983", "22-10-1987", "28-01-2005"), 
+  stringsAsFactors = FALSE
+)
+
+# Afficher le tableau de données “acteurs” 
+kable(
+    acteurs,
+    caption = "Données `acteurs`"
+)
+```
+
+## Exercice 14.2 Changement du nom de la 1ère colonne
+Changeons le nom de la 1ère colonne par : Age.du.décès
+```{r}
+colnames(acteurs)[1] <- "Age.du.décès"
+
+kable(
+    acteurs,
+    caption = "Données `acteurs` après le changement de nom"
+)
+```
+
+
+## Exercice 14.3 Extraction de la colonne `Prénom`
+
+Extrayons la colonne `Prénom`:
+```{r}
+prenoms <- acteurs$Prénom
+
+kable(
+  data.frame(Prénom = prenoms),  # renommer la colonne ici
+  caption = "Colonne `Prénom`"
+)
+
+```
+
+## Exercice 14.4 Ordre croissant suivant l’âge du décès 
+Ordonnons le jeu de données `acteurs` par ordre croissant suivant l’âge du décès:
+```{r}
+acteurs <- acteurs[order(acteurs$Age.du.décès), ]
+
+kable(
+    acteurs,
+    caption = "Données `acteurs`: tri croissant selon l’âge au décès"
+)
+```
+
+## Exercice 15.1 Données `fromages`
+Construisons une data frame w constituée du jeu de données `fromages` avec les noms des colonnes:
+```{r}
+w <- read.table("TP1_fromages.txt", header = TRUE, sep="")
+
+kable(
+    head(w),
+    caption = "Aperçu des données `fromages`"
+)
+```
+
+## Exercice 15.2 Utilisation de `attach`
+
+Associons (attachons) les noms aux colonnes respectives. Vérifions en tapant X1:
+```{r}
+attach(w)
+
+
+kable(
+    data.frame(X1 = head(X1)),
+    caption = "Aperçu de la colonne `X1` après `attach`"
+)
+```
+
+## Exercice 15.3 Caractéristiques de w
+Affichons les caractéristiques de w avec `names` et `summary`:
+```{r summary2, results='asis'}
+# affichage des noms des variables de w
+kable(data.frame(Variable = names(w)), caption = "Noms des variables de w")
+
+# affichage de la structure de w avec kable
+print.str(w, caption = "Structure de w")
+```
+
+## Exercice 15.4 Résumé statistique des variables
+Donnons les paramètres statistiques élémentaires pour les variables Y , X1, X2 et X3.
+```{r, results='asis'}
+for (var in colnames(w))
+{
+  print.summary(summary(get(var)))            # statistiques élémentaires
+}
+```
+
+
+## Exercice 15.5 Commande `pairs`
+Exécutons la commande `pairs(w)`. Cela nous renvoie tous les nuages de points de toutes les variables par paire:
+```{r exo15.5, fig.cap = c("Nuages de points par paire")}
+pairs(w)
+```
+
+## Exercice 15.6 Jeu de données `ww`
+Construisons maintenant une nouvelle data.frame ww des individus vérifiant X1 > 5.1 et X3 < 1.77 et affichons les premieres lignes:
+```{r}
+ww <- w[X1 > 5.1 & X3 < 1.77, ]
+
+kable(head(ww), caption="Aperçu des données `ww`")
+```
+
+
+## Exercice 15.7 Caractéristiques de `ww`
+
+Affichons les caractéristiques de `ww`:
+```{r, results='asis'}
+cat("Dimensions de ww: ", dim(ww))              # dimensions de ww
+print.str(ww)                                   # structure de ww
+```
+
+
+
+## Exercice 15.8 Résumé statistique des variables à partir de `ww`
+
+A partir de `ww`, donnons les paramètres statistiques élémentaires pour les variables Y , X1, X2 et X3:
+```{r, results='asis'}
+
+for (var in colnames(ww))
+{
+  print.summary(summary(ww[[var]]), caption = paste0("Résumé statistique de: ", var)) # statistiques élémentaires
+}
+
+```
+
+
+## Exercice 16.1 Données `airquality`
+
+Chargeons les données `airquality`:
+```{r}
+data("airquality")
+kable(head(airquality), caption ="Aperçu des données `airquality`")
+```
+
+
+- Ce jeu de données provient de mesures de la qualité de l'air à New York entre le mois de Mai et le mois de Septembre 1973.
+
+## Exercice 16.2 Noms des variables de `airquality`
+
+Affichons les noms des variables:
+```{r}
+cat("Noms des variables de `airquality`: ", colnames(airquality))
+```
+
+## Exercice 16.3 Nombre de lignes et de colonnes
+
+Affichons le nombre de lignes et de colonnes:
+```{r}
+cat("Nombre de lignes: ", nrow(airquality), "\n")
+cat("Nombre de colonnes: ", ncol(airquality), "\n")
+```
+
+## Exercice 16.4 Résumé statistique de `airquality`
+
+Calculons les paramètres statistiques de base à l’aide de la commande `summary`:
+```{r, results='asis'}
+# pour un meilleur rendu
+print.summary(df=airquality)
+```
+
+## Exercice 16.5 Boîtes à moustaches par mois de `Ozone`
+
+Représentons les boîtes à moustaches de la variable `Ozone` pour chaque mois avec la commande `plot`:
+```{r exo16.5, fig.cap = c("Boîte à moustaches - Ozone par mois")}
+# Convertir Month en facteur, sinon la fonction plot la considèrera comme une variable quantitative et montrera des nuages de points, au lieu de boîtes à moustaches
+airquality$Month <- factor(airquality$Month, 
+                           levels = 5:9,  # niveaux correspondant à Mai-Septembre
+                           labels = c("Mai", "Juin", "Juillet", "Août", "Septembre"))
+
+# Boîtes à moustaches
+plot(Ozone ~ Month, data = airquality,
+     main = "Boîtes à moustaches de la variable Ozone par mois",
+     xlab = "Mois",
+     ylab = "Ozone",
+     col = "lightgreen",
+     na.action = na.omit)
+
+```
+
+- Remarquons que, pour les mois de Juillet et d’Août, le niveau d'ozone a une plus grande variance et pas de valeurs extrêmes.
+- La distribution d'ozone a le plus de valeurs extrêmes pour le mois de septembre.
+- Le niveau d'ozone varie très peu pour le mois de juin.
+
+## Exercice 16.6 Création de la variable qualitative `saison`
+
+Créons une variable qualitative `saison` qui vaut `printemps` quand le mois est 5 (Mai), `été` quand les mois sont 6, 7 et 8 (Juin, Juillet, Août), et `automne` quand le mois est 9 (Septembre).
+
+```{r}
+# Création de la variable catégorielle saison
+airquality$Saison <- factor(ifelse(airquality$Month == "Mai", "Printemps",
+                                   ifelse(airquality$Month %in% c("Juin","Juillet","Août"), "Été",
+                                          ifelse(airquality$Month == "Septembre", "Automne", NA))),
+                            levels = c("Printemps", "Été", "Automne"))
+
+kable(head(airquality), caption="Aperçu des données `airquality` avec la variable `saison`")
+```
+
+## Exercice 16.7 Niveau d'ozone selon la température 
+
+Obtenons le nuage de points du niveau d'ozone selon la température:
+```{r exo16.7, fig.cap = c("Nuage de points - Ozone selon la Température")}
+# Définition des couleurs
+cols <- c("Printemps" = "blue", "Été" = "green", "Automne" = "red")
+
+# Définition des symboles
+pchs <- c("Printemps" = 3,  # signe +
+          "Été" = 2,        # triangle
+          "Automne" = 1)    # cercle ouvert
+
+# Tracer le nuage de points
+plot(airquality$Temp, airquality$Ozone,
+     main = "Nuage de points - Ozone selon la Température",
+     xlab = "Température",
+     ylab = "Ozone",
+     col = cols[as.character(airquality$Saison)],
+     pch = pchs[as.character(airquality$Saison)],
+     cex = 1.0)
+
+legend("topleft", legend = levels(airquality$Saison),
+       col = cols, pch = pchs)
+
+```
+
+
+
+## Exercice 17.1 Simulation d'une distribution normale
+Simulons 100 valeurs $e_1, . . . , e_{100}$ d’une var suivant la loi normale $N (0, 5^2)$:
+```{r}
+# Définition des paramètres
+n <- 100       # nombre de valeurs
+mu <- 0        # moyenne
+sigma <- 5     # écart-type
+
+# Simulation des 100 valeurs
+e <- rnorm(n, mean = mu, sd = sigma)
+
+# Afficher un aperçu
+kable(head(e), caption="Aperçu des $e_i$")
+```
+
+
+## Exercice 17.2 Création des $y_i$
+Pour tout $i \in \{1, \dots, 100\}$, on pose $y_i = 1.7 + 2.1 i + e_i$ . On obtient au final le vecteur y:
+```{r}
+i <- 1:length(e)
+
+y <- 1.7 + 2.1 * i + e
+
+kable(head(y), caption="Aperçu des $y_i$")
+```
+
+
+## Exercice 17.3 Nuage de points $(i, y_i)$
+
+Représentons le nuage de points $(i, y_i)$ pour $i \in \{1, \dots, 100\}$. 
+
+Sur ce même graphique, ajoutons en rouge la droite qui ajuste au mieux ce nuage de points, autrement dit la droite de régression.
+
+```{r exo17.2, fig.cap = c("Nuage de points de y_i en fonction de i avec droite de régression")}
+library(ggplot2)
+
+# Créer un tableau de données contenant i et y_i
+df <- data.frame(
+  i = i,
+  y = y
+)
+
+# Nuage de points et droite de régression
+ggplot(df, aes(x = i, y = y)) +
+  geom_point(color = "green") +                            # nuage de points
+  geom_smooth(method = "lm", color = "red") +              # droite de régression
+  labs(title = "Nuage de points de y en fonction de i",
+       x = "i",
+       y = "y") +
+  theme_minimal()
+
+```
+
+- Les $y_i$ étant déjà définis linéairement par rapport à $i$, la droite de régression linéaire simple est bien la droite qui ajuste au mieux le nuage de points.
+
+## Exercice 18.1 Tableau de contingence: couleur des yeux et couleur de cheveux
+
+Créons le tableau de contingence croisant la couleur des yeux et la couleur de cheveux pour 592 femmes:
+```{r}
+# On saisit les données
+data <- matrix(c(68,119,26,7,
+              15, 54,14,10,
+               5, 29,14,16,
+              20, 84,17,94),
+            nrow = 4, byrow = TRUE)
+
+rownames(data) <- c("marron","noisette","vert","bleu")
+colnames(data) <- c("brun","chatin","roux","blond")
+
+kable(data, caption = "Tableau de contingence: couleur des yeux et couleur de cheveux")
+
+```
+
+
+## Exercice 18.2 Tableau de contingence des fréquences
+
+Calculons la matrice des fréquences (arrondir au 100ème près):
+```{r}
+# Total des effectifs
+total <- sum(data)  # on exclut la colonne 'couleur'
+
+cat("Total des effectifs: ", total, "\n")
+
+# Matrice des fréquences
+freq <- round(data / total, 2)
+
+# Affichage
+kable(freq, caption="Tableau de contingence des fréquences")
+```
+
+## Exercice 18.3 Lois marginales
+Donnons les lois marginales (c pour le vecteur colonne et r pour le vecteur ligne):
+```{r}
+# Loi marginale par ligne (couleur des yeux)
+r <- as.numeric(rowSums(freq))
+
+# Loi marginale par colonne (couleur de cheveux)
+c <- as.numeric(colSums(freq))
+
+# Affichage des résultats
+kable(r, caption="Loi marginale r par ligne (couleur des yeux)")
+kable(c, caption="Loi marginale c par colonne (couleur de cheveux)")
+
+```
+
+## Exercice 18.4 Matrice des profils-lignes L
+
+Utilisons la commande `sweep` pour donner la matrice des profils lignes L (distributions conditionnelles en ligne):
+```{r}
+# Profils-lignes
+L <- sweep(freq, 1, r, FUN = "/")
+
+# Arrondir au centième
+L <- round(L, 2)
+
+kable(L, caption="Profils-lignes (couleur des yeux)")
+```
+
+## Exercice 18.5 Matrice des profils-colonnes C
+Utilisons la commande `sweep` pour donner la matrice des profils colonnes C (distributions conditionnelles en colonne):
+```{r}
+# Profils colonnes : chaque colonne divisée par sa somme
+C <- sweep(freq, 2, c, FUN = "/")
+
+# Arrondir au centième
+C <- round(C, 2)
+
+kable(C, caption="Profils-colonnes (couleur des cheveux)")
+```
+
+
+
+## Exercice 18.6 Distance de $\chi^2$ manuelle
+
+Calculons manuellement la distance de $\chi^2$ entre les profils lignes:
+```{r}
+# Fonction pour calculer la distance chi-2
+chi2_dist <- function(L, c) {
+  n <- nrow(L)
+  D <- matrix(0, n, n)
+  for (i in 1:n) {
+    for (j in 1:n) {
+      D[i, j] <- sum((L[i, ] - L[j, ])^2 / c)
+    }
+  }
+  rownames(D) <- rownames(L)
+  colnames(D) <- rownames(L)
+  return(D)
+}
+
+# Calcul de la distance chi-deux
+Dist_chi2 <- chi2_dist(L, c)
+Dist_chi2 <- round(Dist_chi2, 3)
+
+# Affichage
+kable(Dist_chi2, caption="Distance de $\\chi^2$ manuelle")
+```
+
+## Exercice 18.7 Matrice des taux de liaison
+Donnons la matrice des taux de liaison (arrondir au 100ème près):
+```{r}
+# On extrait la matrice des fréquences (sans la colonne 'couleur')
+F <- as.matrix(freq)
+
+# Calcul des taux de liaison
+T <- matrix(0, nrow(F), ncol(F))
+
+for (i in 1:nrow(F)) {
+  for (j in 1:ncol(F)) {
+    T[i, j] <- (F[i, j] - r[i] * c[j]) / sqrt(r[i] * c[j])
+  }
+}
+
+# Ajout des noms de lignes et colonnes
+rownames(T) <- rownames(freq)
+colnames(T) <- colnames(freq)
+
+# Arrondir au centième
+T <- round(T, 2)
+
+kable(T, caption="Matrice des taux de liaison")
+```
+
+## Exercice 18.8 Test de $\chi^2$
+Faisons le test de $\chi^2$ permettant de juger de la liaison entre la couleur des yeux et la couleur des cheveux:
+```{r}
+chisq.test(data)
+```
+- La p-valeur résultant du test de $\chi^2$ est inférieure a 0.05. On **rejette** donc l'hypothese d'indépendance. 
+- La couleur des yeux et la couleur des cheveux sont statistiquement significativement dépendantes.
+
+###################################
+# Travail personnel 2
+###################################
+
+## Exercice 19.1. Tableau de contingence:  `Niveau de Diplôme` et `Tranche d’âge`
+
+Ecrivons un tableau comportant les données:
+```{r}
+data <- data.frame(
+  BEPC = c(15,10,15,40),
+  BAC = c(12,18,5,35),
+  Licence = c(3,4,8,15),
+  Total = c(30,32,28,90)
+)
+
+rownames(data) <- c("Plus de 50 ans", "Entre 30 et 50 ans", "Moins de 30 ans", "Total")
+
+kable(data, caption="Tableau de contingence des effectifs: `Niveau de Diplôme` et `Tranche d’âge`")
+```
+
+## Exercice 19.2. Tableau de contingence des fréquences
+Donnons le tableau de contingence des fréquences:
+```{r}
+# effectif total
+total_effectifs <- as.numeric(data["Total", "Total"])
+
+# tableau de contingence des fréquences
+freq_tab <- data/total_effectifs
+freq_tab <- round(freq_tab, 3)
+rownames(freq_tab)[rownames(freq_tab) == "Total"] <- 'Fréq. relat. ligne'
+colnames(freq_tab)[colnames(freq_tab) == "Total"] <- 'Fréq. relat. colonne'
+
+
+kable(freq_tab, caption="Tableau de contingence des fréquences: `Niveau de Diplôme` et `Tranche d’âge`")
+
+```
+
+
+
+## Exercice 19.3. Matrices des profils-lignes et profils-colonnes
+
+Donnons la matrice des profils lignes et celle des profils colonnes:
+```{r}
+tab <- as.matrix(data[1:3, 1:3])
+
+profils_lignes <- prop.table(tab, margin = 1)
+profils_lignes <- cbind(profils_lignes, 'Total' = rowSums(profils_lignes))
+profils_lignes <- round(profils_lignes, 3)
+
+kable(profils_lignes, caption="Matrice des profils-lignes")
+
+
+profils_colonnes <- prop.table(tab, margin = 2)
+profils_colonnes <- round(profils_colonnes, 3)
+profils_colonnes <- rbind(profils_colonnes, 'Total' = colSums(profils_colonnes))
+
+kable(profils_colonnes, caption="Matrice des profils-colonnes")
+
+```
+
+
+
+## Exercice 19.4. Test d’indépendance de $\chi^2$ 
+
+Effectuons le test de $\chi^2$ d’indépendance des deux caractères statistiques:
+```{r}
+chisq.test(tab)
+```
+
+
+## Exercice 19.5. Indépendance pour un seuil $\alpha = 0.05$
+Les deux caractères statistiques sont-ils indépendants pour un seuil $\alpha = 0.05$?
+
+- La p-value étant inférieure à 0.05, on **rejette** l’hypothèse nulle d’indépendance. 
+- Il existe une relation statistiquement significative entre l’âge et le diplôme.
+
+
+## Exercice 20.1. Tableau de contingence: `Etat matrimonial` et `Couleur des yeux`
+Créons une variable `tableau` pour le tableau de contingence des effectifs:
+```{r}
+tableau <- matrix(c(290,410,110,190), ncol=2, byrow=TRUE)
+colnames(tableau) <- c("Bleu","Brun")
+rownames(tableau) <- c("Celib","Marie")
+tableau <- as.table(tableau)
+
+kable(tableau, caption="Tableau de contingence: `Etat matrimonial` et `Couleur des yeux`")
+```
+
+
+
+## Exercice 20.2. Représentation graphique du tableau
+Représentons graphiquement ce tableau de contingence des effectifs avec `barplot`:
+```{r}
+barplot(tableau,
+        main = paste("Couleur des yeux & Etat matrimonial"),
+        xlab = rownames(tableau)[2], ylab = "Effectifs",
+        col = c("lightgreen", "lightblue"),
+        legend.text = rownames(tableau),
+        names.arg = colnames(tableau),
+        args.legend = list(x="topleft", cex=0.8)
+)
+```
+
+
+
+## Exercice 20.3. Commandes `margin.table` et `prop.table`
+
+Exécutons les commandes `margin.table(tableau)`, `margin.table(tableau,1)`, `margin.table(tableau,2)` et `prop.table(tableau)`:
+```{r}
+n <- margin.table(tableau)
+cat("\nmargin.table(tableau): ", n, "\n")
+
+m1 <- margin.table(tableau,1)
+kable(m1, caption="Distribution marginale de la première variable `Etat matrimonial`")
+
+m2 <- margin.table(tableau,2)
+kable(m2, caption="Distribution marginale de la deuxième variable `Couleur des yeux`")
+
+
+freq_t <- prop.table(tableau)
+kable(freq_t, caption="Tableau de contingence des fréquences")
+```
+
+- `margin.table(tableau)` renvoie l'effectif total de l'échantillon.
+- `margin.table(tableau,1)` renvoie la distribution marginale de la premiere variable `Etat matrimonial`.
+- `margin.table(tableau,2)` renvoie la distribution marginale de la deuxieme variable `Couleur des yeux`.
+- `prop.table(tableau)` renvoie le tableau de contingence des fréquences.
+
+
+
+## Exercice 20.4. Tableau `tab0` et résumé statistique
+a) Créons le tableau `tab0`:
+```{r}
+tab0 <- as.array(m1) %*% t(as.array(m2))/n
+tab0 <- as.table(tab0)
+
+kable(tab0, caption="`tab0`")
+```
+
+
+- `tab0`, ainsi défini, est le **tableau des effectifs théoriques** sous l’hypothèse d’indépendance.
+
+b) Exécutons la commande `summary` sur nos 2 tableaux: 
+```{r}
+summary(tableau)
+summary(tab0)
+```
+- Les p-valeurs des tests de $\chi^2$ sur les 2 tableaux sont toutes deux supérieures à 0.05. Dans ce cas, on **conserve** donc l’hypothèse nulle d’indépendance des deux variables `Etat matrimonial` et `Couleur des yeux`.
+- `tab0` a, dès le départ, été construit comme le tableau des effectifs théoriques sous l’hypothèse d’indépendance. Ce n'est donc pas surprenant que la p-valeur, résultant du test de $\chi^2$, est égale à 1.
+
+
+## Exercice 20.5. `tableau2` et test de $\chi^2$
+
+Créons un tableau dans lequel tous les individus aux yeux `bleus` sont `mariés` et tous les autres sont `célibataires`, et effectuons le test de $\chi^2$:
+```{r}
+tableau2 <- matrix(c(0,600,400,0), ncol=2, byrow=TRUE)
+colnames(tableau2) <- c("Bleu","Brun")
+rownames(tableau2) <- c("Celib","Marie")
+tableau2 <- as.table(tableau2)
+
+kable(tableau2, caption ="`tableau2`")
+
+chisq.test(tableau2)
+```
+
+- Dans ce cas, la p-valeur résultant du test de $\chi^2$ est bien inférieure à 0.05. Par conséquent, on **rejette** l’hypothèse nulle d’indépendance.
+- Pour ce tableau de contingence, on dira qu'il existe une relation statistiquement significative entre les deux variables.
+
+## Exercice 20.6. Test de $\chi^2$ sur `HairEyeColor`, `Titanic` et `UCBAdmissions`
+
+b) Appliquons le test de $\chi^2$ à quelques échantillons statistiques de R, par exemple `HairEyeColor`, `Titanic` et `UCBAdmissions`.
+```{r}
+# HairEyeColor
+data("HairEyeColor")
+
+# Tableau de contingence Hair x Eye (somme sur Sex)
+tab_hair_eye <- margin.table(HairEyeColor, c("Hair", "Eye"))
+kable(tab_hair_eye, caption="Tableau de contingence: `Hair` & `Eye`")
+
+# Test du chi-deux
+test_hair_eye <- chisq.test(tab_hair_eye)
+print(test_hair_eye)
+
+
+# Titanic
+data("Titanic")
+
+# Tableau de contingence Class x Survived (somme sur Sex et Age)
+tab_class_surv <- margin.table(Titanic, c("Class", "Survived"))
+kable(tab_class_surv, caption="Tableau de contingence: `Class` & `Survived`")
+
+# Test du chi-deux
+test_class_surv <- chisq.test(tab_class_surv)
+print(test_class_surv)
+
+
+# UCBAdmissions
+data("UCBAdmissions")
+
+
+# Tableau de contingence Admit x Dept (somme sur Gender)
+tab_admit_dept <- margin.table(UCBAdmissions, c("Admit", "Dept"))
+kable(tab_admit_dept, caption="Tableau de contingence: `Admit` & `Dept`")
+
+# Test du chi-deux
+test_admit_dept <- chisq.test(tab_admit_dept)
+print(test_admit_dept)
+```
+### Commentaire
+
+- Toutes les p-valeurs obtenues sont inférieures à 0.05; on **rejette** donc l'hypothèse d'indépendance des paires de variables qu'on a choisies pour chacun des 3 échantillons statistiques: `HairEyeColor`, `Titanic` et `UCBAdmissions`.
+
+- Dans le cas de `HairEyeColor`, on peut donc dire que la **couleur des cheveux** et la **couleur des yeux** sont signifcativement corrélées.
+- Dans le cas de `Titanic`, on peut dire que la **classe** et la **survie** sont signifcativement corrélées.
+- Dans le cas de `UCBAdmissions`, on peut dire que l'**admission** et le **département** sont signifcativement corrélées.
+
+
+## Exercice 21.2. Donnée `cars`
+Dans cet exercice, nous allons non seulement manipuler les commandes de bases permettant d’effectuer une régression linéaire sous R, mais également contrôler les résultats obtenus, sélectionner les modèles et effectuer des représentations graphiques.
+
+On va utiliser un jeu de données simple déjà implanté dans R: `cars`.
+```{r}
+data(cars)
+kable(head(cars), caption ="Aperçu des données `cars`")
+cat("Noms de variables du jeu de données `cars`: ", names(cars))
+cat("Dimensions du jeu de données `cars`: ", dim(cars))
+``` 
+
+Puisque le jeu de données `cars` contient que 2 variables, on peut construire le nuage de points avec la fonction `plot`:
+```{r}
+# nuage de points
+plot(cars)  
+```
+
+
+Ici, on construit un modèle de régression linéaire simple et on affichera ses attributs:
+```{r}
+reg<-lm(dist~speed,cars)   # construction du 
+attributes(reg)            # ses attributs
+```
+
+Comparons `summary` et `anova`:
+```{r}
+summary(reg) 
+anova(reg)
+```
+### Commentaire
+
+- `summary(reg)` fournit une **interprétation paramétrique** du modèle:
+
+  - Estimation des coefficients (intercept et pente).
+  - Test t de significativité des coefficients.
+
+- `anova(reg)` fournit une **décomposition de la variance** :
+  - Variance expliquée par `speed`.
+  - Variance résiduelle.
+  
+En gros, les deux méthodes testent l’effet de la variable explicative **speed** sur la variable réponse **dist**.
+
+- La statistique de test est la même :
+  - **F = 89.57**
+  - **p-value = 1.49e-12**
+  
+- La conclusion est identique : l’effet de `speed` sur `dist` est **hautement significatif**.
+
+
+La commande `plot(reg)` nous fournit 4 graphes mais on s’intéressera a deux en particulier:
+```{r}
+plot(reg)
+```
+
+- Le graphique QQ-plot permet d’évaluer l’hypothèse de normalité des résidus du modèle.
+
+  - Lorsque les points sont globalement alignés le long de la première bissectrice, cela indique que la distribution empirique des résidus est proche d’une loi normale.
+
+  - Dans notre cas, la majorité des points suit correctement cette droite de référence. On observe toutefois de légers écarts dans les extrémités, traduisant la présence de quelques valeurs atypiques dans les queues de distribution.
+
+- Le graphique de `Cook’s D` permet de repérer les points ń influents ż, c’est-à-dire ceux pour qui la régression linéaire est mal (ou pas) adaptée, parce qu’ils se situent trop loin de la droite de régression. Ces points sont repérés par de grandes valeurs du D de Cook.
+
+
+a) On peut tracer désormais la droite de régression:
+```{r}
+plot(cars,pch=20,col='blue') 
+abline(reg=reg,col='red')
+
+```
+- On peut voir que cette droite ajute bien nos données `cars`.
+
+Pour la prévision, on a besoin de la commande `predict`: 
+```{r}
+cat("La valeur prédite pour une vitesse de 20 est de: ", predict(reg, newdata = data.frame(speed = 20)))
+```
+
+b) Donnons un intervalle de confiance et un intervalle de prédiction pour cette valeur avec les options `confidence` puis `prediction`:
+```{r}
+predict(reg, newdata = data.frame(speed = 20), interval = "confidence")
+predict(reg, newdata = data.frame(speed = 20), interval = "prediction")
+```
+- Remarquons que l'intervalle de confiance est beaucoup plus étroit que l'intervalle de prédiction.
+
+
+c) Pour le jeu de données `cars`, la sélection de variables n'est pas possible car il ne contient que deux variables : `speed` et `dist`.
+
+Chargeons le jeu de données `cpus` du package `MASS`:
+```{r}
+library(MASS)
+data(cpus)
+
+kable(head(cpus), caption = "Aperçu des données `cpus`")
+
+```
+
+
+d) Pour avoir une idée globale du comportement des variables les unes par rapport aux autres, on utilise la fonction `pairs`:
+```{r, fig.width=10, fig.height=8, dpi=300}
+pairs(cpus, pch=19, col = "blue")
+```
+- On peut remarquer que certaines variables comme `perf` et `estperf` sont fortement corrélées positivement.
+- Pour les autres variables, les relations ne sont pas du tout linéaires.
+
+Effectuons la régression de la variable `perf` contre toutes les autres variables quantitatives:
+```{r}
+# Régression : perf contre toutes les variables quantitatives
+quant_vars <- sapply(cpus, is.numeric)
+cpus_quant <- cpus[, quant_vars]
+
+model_complet <- lm(perf ~ ., data = cpus_quant)
+summary(model_complet)
+
+```
+### Commentaire
+
+- Le modèle est **globalement très significatif** (statistique de Fisher = 438.4, p-value < 2.2e-16).
+- `estperf` est de loin la variable la plus explicative (p-value < 2.2e-16)
+  - Cela confirme que la performance estimée est un excellent prédicteur de la performance réelle.
+
+- `chmax` a un effet positif et significatif (p-value = 0.037) :
+  - Une augmentation du nombre maximal de canaux est associée à une augmentation de la performance.
+
+- `cach` a un effet positif mais seulement faiblement significatif (p-value = 0.080).
+
+- Les variables `syct`, `mmin`, `mmax`, `chmin` ne sont pas significatives individuellement.
+
+
+Nous affinerons enfin le modèle en sélectionnant automatiquement les variables pertinentes avec la fonction `step` et la direction `backward`:
+```{r}
+# Sélection automatique AIC
+model_final <- step(model_complet, direction = "backward")
+summary(model_final)
+
+```
+### Commentaire
+
+La procédure de sélection pas à pas basée sur le critère AIC conduit à un modèle parcimonieux ne retenant que **3 variables explicatives** : `cach`, `chmax` et `estperf`:
+
+- Le modèle est **globalement très significatif** (F-statistic = 1023, p-value < 2.2e-16).
+- `estperf`  a un coefficient très élevé et extrêmement significatif (p < 2e-16).
+  - C’est de loin la variable la plus explicative du modèle.
+  - Une augmentation de 1 unité de `estperf` entraîne en moyenne une augmentation d’environ **0.94 unités de `perf`**, toutes choses égales par ailleurs.
+
+- `cach`  
+  - Son coefficient indique que les processeurs disposant d’une plus grande mémoire cache ont de meilleures performances, toutes choses égales par ailleurs.
+
+- `chmax`  
+  - Son coefficient indique que le nombre maximal de canaux contribue positivement à la performance, mais de manière plus modérée.
+
+En comparaison avec le modèle complet, le modèle sélectionné explique **presque autant de variance** et ce, avec **moins de variables**.
+
+
+## Exercice 22.1 Données `enseignants`
+
+Ces données sont extraites d’un reccueil de données issu d’une enquête portant sur une population d’enseignants de collèges. 
+
+Elles ont été modifiées pour les besoins du TP. La plupart des variables sont explicites. 
+
+Le salaire est exprimé en `euros`, l’âge et l’ancienneté en `années.` Le stress, l’estime de soi et la satisfaction au travail sont mesurés sur des échelles allant de `0 à 50` suivant des techniques appropriées.
+
+Importons les données:
+
+```{r}
+library(readxl)
+data<- read_excel("Donnees_sur_enseignants.xls")
+
+kable(head(data), caption ="Aperçu des données `enseignants`")
+```
+
+## Exercice 22.2. Résumé statistique des données
+
+Donnons un résumé statistique descriptif standard des données avec les fonctions `str` et `summary`:
+```{r, results='asis'}
+print.str(data)
+
+cat_vars <- names(data)[sapply(data, is.character)]
+
+# Conversion en facteur
+data[cat_vars] <- lapply(data[cat_vars], factor)
+
+# corriger l'ordre des niveauxdans AvisReforme
+data$AvisReforme <- factor(data$AvisReforme,
+    levels = c("Très défavorable",
+               "Défavorable",
+               "Neutre",
+               "Favorable",
+               "Très favorable")
+)
+
+
+# "Age", Salaire" et "Anciennete" ont trop de modalités donc on les considèrera comme continues
+disc_vars <- c("Nbenfant")
+
+
+for (var in c(cat_vars, disc_vars))
+{
+  t <- as.data.frame(table(data[[var]]))            # tri à plat
+  
+  # affichage avec kable (*pour le pdf)
+  print(kable(
+    setNames(t, c("Modalités", "Effectifs")),               
+    caption = paste("Tri à plat de la variable", var)
+  ))
+}
+
+# Pour toutes nos variables non catégorielles, on peut afficher les paramètres statistiques de base avec summary
+
+cont_vars <- setdiff(names(data), c(cat_vars, disc_vars))
+
+for (var in cont_vars)
+{
+  print.summary(summary(data[[var]]), caption = paste0("Résumé statistique de ", var))     # statistiques de base
+}
+```
+
+## Exercice 22.3. Analyse des résumés
+
+Examinons les résumés et en particulier celui du salaire:
+
+- Le salaire des enseignants interrogés s’étend de **1200 € à 2200 €**, ce qui indique une dispersion modérée des rémunérations. 
+  - La **médiane** est de **1720 €**, valeur proche de la **moyenne (1778 €)**, ce qui suggère une distribution globalement assez symétrique, sans forte asymétrie marquée.  
+  - Le **premier quartile (1650 €)** et le **troisième quartile (1908 €)** montrent que 50 % des salaires se situent dans un intervalle relativement resserré d’environ 260 €, traduisant une certaine homogénéité salariale au sein de l’échantillon. 
+  - Les valeurs extrêmes restent limitées, ce qui laisse supposer l’absence de salaires aberrants ou très atypiques.
+
+- Cette distribution est cohérente avec les autres variables liées à la carrière professionnelle : 
+  - une **ancienneté moyenne de 16,55 ans**,  
+  - une majorité de diplômes situés entre **Bac+3 et Bac+4**,  
+  - et un effectif principalement composé d’enseignants mariés, donc probablement en milieu ou fin de carrière.
+
+En conclusion, le salaire apparaît comme une variable relativement stable dans cet échantillon, avec des variations plausibles et cohérentes avec l’âge, l’ancienneté et le niveau de diplôme.
+
+## Exercice 22.4. Croisement qualitatif vs qualitatif
+
+- On donnera les tableaux de contingences (effectifs, fréquences, pourcentages)
+- On donnera aussi différentes représentations graphiques du tableau de contingence des effectifs : `balloonplot`, `barplot` avec les options `beside=TRUE` et `beside=FALSE`, `mosaicplot`
+- On donnera les distributions marginales et on remarquera qu'elles sont, en fait, pareilles aux distributions univariées.
+- On y ajoutera les distributions conditionnelles.
+
+
+```{r, results='asis'}
+
+library(gplots)        # pour l'utilisation de balloonplot
+library(RColorBrewer)  # pour donner une couleur differente a chaque modalite
+
+
+# Petite fonction pour associer des couleurs differentes
+get_colors <- function(n) {
+  if (n==2){
+    c("pink", "red")
+  }else{
+    brewer.pal(max(3, n), "Set2")[1:n]
+  }
+}
+
+for (i in 1:(length(cat_vars)-1)) {
+  for (j in (i+1):length(cat_vars)) {
+    var1 <- cat_vars[i]
+    var2 <- cat_vars[j]
+    
+    # (a) Tableaux de contingences (effectifs, fréquences, pourcentages)
+    
+    # Effectifs
+    tab <- table(data[[var1]], data[[var2]])
+    print(kable(tab, caption = paste0("Tableau de contingence (effectifs): ", var1, " vs ", var2)))
+    
+    # Fréquences
+    print(kable(round(prop.table(tab), 3), caption = paste0("Tableau de contingence (fréquences): ", var1, " vs ", var2)))
+    
+    # Pourcentages
+    print(kable(100*round(prop.table(tab), 3), caption = paste0("Tableau de contingence (pourcentages): ", var1, " vs ", var2)))
+    
+    # (c.1) Distributions marginales
+    
+    # première variable
+    print(kable(margin.table(tab, 1), caption = paste0("Distribution marginale: ", var1)))
+
+    # deuxième variable
+    print(kable(margin.table(tab, 2), caption = paste0("Distribution marginale: ", var2)))
+    
+    # (c.2) Distributions univariées
+    
+    # première variable
+    print(kable(table(data[var1]), caption = paste0("Distribution marginale: ", var1)))
+
+    # deuxième variable
+    print(kable(table(data[var2]), caption = paste0("Distribution marginale: ", var2)))
+    
+    # (d) Distributions conditionnelles
+    
+    # première variable
+    print(kable(prop.table(tab, 2), caption = paste0("Distribution conditionnelle: ", var1, " sachant ", var2)))
+
+    # deuxième variable
+    print(kable(prop.table(tab, 1), caption = paste0("Distribution conditionnelle: ", var2, " sachant ", var1)))
+    
+    # (b) Différentes représentations graphiques du tableau de contingence des effectifs : balloonplot, barplot, en utilisant l’option beside=TRUE et beside=FALSE, mosaicplot, ...
+    
+    colors <- get_colors(nrow(tab))
+    
+    
+    # BARPLOT EMPILÉ
+    barplot(tab,
+            main = paste("Barplot empilé :", var1, "vs", var2),
+            xlab = var2, ylab = "Effectifs",
+            col = colors,
+            legend.text = rownames(tab),
+            names.arg = colnames(tab),
+            args.legend = list(x="topright", cex=0.8))
+    
+
+    # BARPLOT CÔTE À CÔTE
+    barplot(tab,
+            beside = TRUE,
+            main = paste("Barplot côte à côte :", var1, "vs", var2),
+            xlab = var2, ylab = "Effectifs",
+            col = colors,
+            legend.text = rownames(tab),
+            names.arg = colnames(tab),
+            args.legend = list(x="topright", cex=0.8))
+    
+    # MOSAICPLOT
+    mosaicplot(t(tab),
+               main = paste("Mosaicplot :", var1, "vs", var2),
+               shade = TRUE,
+               xlab = var2, ylab = var1,
+               las = 2)
+    
+    # BALLOONPLOT
+    balloonplot(tab,
+                main = paste("Balloonplot :", var1, "vs", var2),
+                xlab = var1,
+                ylab = var2)
+    
+  }
+}
+
+```
+
+
+e) Faisons maintenant un test de $\chi^2$ (avec la fonction `chisq.test`) afin d’apprécier la dépendance, ou non, des variables `Sexe` et `EtatCivil`:
+```{r}
+tab_obs <- table(data$Sexe, data$EtatCivil)
+test_Sexe_EtatCivil <- chisq.test(tab_obs)
+test_Sexe_EtatCivil
+```
+- La p-valeur résultant du test de $\chi^2$ est bien supérieure à 0.05. Par conséquent, on **conserve** l’hypothèse nulle d’indépendance.
+
+f) Récupérons le tableau correspondant à l’indépendance de la question précédente. 
+
+Calculons le $\chi^2$ par étapes (Tableau des effectifs théoriques correspondant à l’indépendance des variables, Calcul du coefficient de chi-deux par étapes, ...) et comparons aux résultats obtenus à la question précédente:
+```{r}
+tab_theor <- test_Sexe_EtatCivil$expected
+chi2_obs <- test_Sexe_EtatCivil$statistic
+
+chi2_manuel <- sum((tab_obs - tab_theor)^2 / tab_theor)
+
+cat("Chi2 observée : ", chi2_obs)
+cat("Chi2 manuel: ", chi2_manuel)
+
+```
+
+
+g) Testons et concluons de deux manières (à partir du coefficient et à partir de la p-valeur) sur la liaision entre les variables `Sexe` et `EtatCivil`:
+```{r}
+alpha <- 0.05
+pval <- test_Sexe_EtatCivil$p.value
+df <- test_Sexe_EtatCivil$parameter
+chi2_crit <- qchisq(1 - alpha, df)
+
+cat("Chi2 observée : ", chi2_obs)
+cat("Chi² critique (5%)  :", chi2_crit, "\n")
+cat("p-value             :", pval, "\n")
+
+```
+
+- **Décision basée sur chi2**
+  - La statistique de $\chi^2$ observée est inférieure à la $\chi^{2*}$ critique. Par conséquent, on **conserve** l’hypothèse nulle d’indépendance.
+
+- **Décision basée sur la p-valeur**
+  - La p-valeur résultant du test de $\chi^2$ est bien supérieure à 0.05. Par conséquent, on **conserve** l’hypothèse nulle d’indépendance.
+  
+  
+## Exercice 22.5. Croisement quantitatif vs qualitatif
+
+On s’intéresse maintenant au croisement `Stress` vs `EtatCivil`.
+
+On va déterminer s’il existe une relation ou non entre le stress et l’état civil des enseignants interrogés.
+
+a) Donnons le résumé standard de la variable `Stress`:
+```{r}
+summary(data$Stress)
+```
+
+
+b) Représentons et commentons le boxplot de la variable `Stress`:
+```{r}
+boxplot(data$Stress,
+        main = "Boxplot du Stress",
+        ylab = "Stress",
+        col = "lightgreen")
+
+```
+- Le boxplot de la variable `Stress` parait symétrique: la médiane se trouvant au milieu et les moustaches ayant a peu près la même longueur avec une valeur extrême de chaque cote. 
+- Cela veut dire que cette variable suit une loi normale.
+
+c) Constituons 5 classes de mêmes amplitudes pour la variable `Stress`
+```{r}
+# fonction pour constituer n classe de meme amplitude pour une variable donnee
+creer_nclasses <- function (data, n_class){
+  # Bornes min et max
+  min_val <- min(data)
+  max_val <- max(data)
+  
+  # Création des bornes équidistantes
+  amplitude <- (max_val - min_val) / n_class
+  breaks <- min_val + (0:n_class) * amplitude
+  
+  # Découpage en classes cut(data, breaks = breaks, include.lowest = TRUE)
+  cut(data, breaks = breaks, include.lowest = TRUE)
+}
+
+# 5 classes de mêmes amplitudes pour la variable Stress
+Stress_classes <- creer_nclasses(data$Stress, 5)
+kable(table(Stress_classes), caption = "5 Classes de la variable `Stress`")
+
+```
+
+
+
+
+d) Donnons les tableaux de contingences de `Stress` vs `EtatCivil` : en effectifs, en fréquences, en pourcentages (arrondir au 100ème près).
+```{r, results='asis'}
+# en effectifs
+tab_eff <- table(Stress_classes, data$EtatCivil)
+print(kable(tab_eff, caption = paste0("Tableau de contingence (effectifs): `Stress` vs `EtatCivil`")))
+
+# en fréquences
+tab_freq <- round(prop.table(tab_eff), 2)
+print(kable(tab_freq, caption = paste0("Tableau de contingence (fréquences): `Stress` vs `EtatCivil`")))
+
+# en pourcentages
+tab_pct <- round(100 * tab_freq, 2)
+print(kable(tab_pct, caption = paste0("Tableau de contingence (pourcentages): `Stress` vs `EtatCivil`")))
+
+```
+
+
+
+e) Donnons les boxplots de la variable Stress en fonction de la variable EtatCivil. Que remarque-t-on ?
+```{r}
+boxplot(Stress ~ EtatCivil, data=data,
+        main = "Stress selon EtatCivil",
+        ylab = "Stress",
+        col="lightgreen")
+
+```
+
+
+f) Donnons les histogrammes de la variable Stress en fonction de la variable EtatCivil (package lattice)
+```{r}
+library(lattice)
+histogram(~ Stress | EtatCivil,
+          data = data,              
+          col = "lightgreen",             # couleur des barres
+          xlab = "Stress", 
+          main = "Stress selon Etat Civil")
+
+```
+
+
+g) Donnons les résumés de la variable `Stress` en fonction de la variable `EtatCivil`:
+```{r}
+tapply(data$Stress, data$EtatCivil, summary)
+
+```
+
+
+h) Calculons le rapport de corrélation $\eta^2$ par étapes (Calcul de la variance intra-groupes, Calcul de la variance inter-groupes, le coefficient $\eta^2$):
+```{r}
+# Variables
+y <- data$Stress
+group <- data$EtatCivil
+
+# Effectifs par groupe
+n_i <- table(group)
+
+# Moyenne globale
+y_bar <- mean(y)
+
+# Moyennes par groupe
+y_bar_i <- tapply(y, group, mean)
+
+# Variance inter-groupes (SST - SSE)
+SST <- sum((y - y_bar)^2)                                       # variance totale
+SSE <- sum(tapply(y, group, function(x) sum((x - mean(x))^2)))  # variance intra-groupes
+SSB <- SST - SSE                                                # variance inter-groupes
+
+# Rapport de corrélation eta2 manuellement
+eta2 <- SSB / SST
+cat("\nRapport de corrélation eta2 calculé manuellement: ", eta2, "\n")
+
+```
+
+
+i) Comparons avec le $F$ de Fisher (Calcul de l’indicateur de Fisher F(`Stress`/`EtatCivil`), Calcul du seuil de signicativité de F(`Stress`/ `EtatCivil`)):
+```{r}
+# Degrés de liberté
+df_inter <- length(unique(data$EtatCivil)) - 1
+df_intra  <- nrow(data) - length(unique(data$EtatCivil))
+
+# F à partir de eta²
+F_manuel <- (eta2 / (1 - eta2)) * (df_intra / df_inter)
+cat("\nF observée (calculée à partir de eta²) : ", F_manuel, "\n")
+
+# Calcul du seuil de signicativité de F (F critique)
+F_crit <- qf(1 - alpha, df_inter, df_intra)
+cat("\nSeuil de signicativité (F critique) : ", F_crit, "\n")
+
+```
+- Puisque la statistique F observée est supérieure a F critique (ou p < 0.05), on **rejette** H0.
+- Il existe un écart significatif entre les groupes et donc, il existe une relation statistiquement significative entre `Stress` et `EtatCivil`.
+
+## Exercice 22.6. Croisement quantitatif vs quantitatif
+
+On s’intéresse maintenant au croisement `Age` vs `Satisfaction`. 
+
+On va déterminer s’il existe une relation ou non entre l’âge et la satisfaction au travail des enseignants interrogés.
+
+
+a) Donnons le résumé standard de la variable Satisfaction:
+```{r}
+summary(data$Satisfaction)
+
+```
+
+
+b) Représentons et commentons le boxplot de la variable Satisfaction:
+```{r}
+boxplot(data$Satisfaction,
+        main = "Distribution de la variable Satisfaction",
+        ylab = "Satisfaction",
+        col="lightgreen")
+
+# ligne moyenne
+abline(h = mean(data$Satisfaction, na.rm = TRUE), col = "red", lwd = 2)
+
+```
+
+
+
+c) Détectons graphiquement les “outliers” en dehors d’une bande de 2 écarts-types autour de la moyenne. Pour ce faire, on utilisera la fonction `identify`:
+```{r}
+## Calcul des seuils ± 2 écarts-types
+m_Sat  <- mean(data$Satisfaction, na.rm = TRUE)
+sd_Sat <- sd(data$Satisfaction, na.rm = TRUE)
+
+lower_Sat <- m_Sat - 2*sd_Sat
+upper_Sat <- m_Sat + 2*sd_Sat
+
+lower_Sat ; upper_Sat
+
+## Visualisation graphique
+plot(data$Satisfaction,
+     main = "Détection des outliers de Satisfaction (± 2 σ)",
+     xlab = "Indice",
+     ylab = "Satisfaction",
+     pch = 19, col = "green",
+     ylim = c(lower_Sat - 1, upper_Sat + 1))
+
+## Lignes limites
+abline(h = lower_Sat, col = "red", lty = 2, lwd = 2)
+abline(h = upper_Sat, col = "red", lty = 2, lwd = 2)
+
+## Ligne moyenne
+abline(h = m_Sat, col = "blue", lwd = 2)
+
+## Identification visuelle avec identify
+outliers_identify_Sat <- data[c(21, 140), ]
+kable(outliers_identify_Sat, caption = "Outliers de `Satisfaction` repérés avec `identify`")
+
+## Identification des valeurs aberrantes par calcul
+outliers_Sat <- data[ data$Satisfaction < lower_Sat | data$Satisfaction > upper_Sat, ]
+kable(outliers_Sat, caption = "Outliers de `Satisfaction` repérés avec les calculs")
+
+```
+
+
+
+d) Donnons le résumé standard de la variable `Age`:
+```{r}
+summary(data$Age)
+
+```
+
+
+e) Représentons et commentons le boxplot de la variable `Age`:
+```{r}
+boxplot(data$Age,
+        main = "Distribution de la variable Age",
+        ylab = "Age",
+        col="lightgreen")
+
+```
+
+f) Détectons graphiquement les “outliers” en dehors d’une bande de 2 écarts-types autour de la moyenne:
+```{r, results='asis'}
+## Calcul des seuils ± 2 écarts-types
+m_Age <- mean(data$Age, na.rm = TRUE)
+sd_Age <- sd(data$Age, na.rm = TRUE)
+
+lower_Age <- m_Age - 2*sd_Age
+upper_Age <- m_Age + 2*sd_Age
+
+## Visualisation graphique
+plot(data$Age,
+     main = "Détection des outliers de Age (± 2 σ)",
+     xlab = "Indice",
+     ylab = "Age",
+     pch = 19, col = "green",
+     ylim = c(lower_Age - 1, upper_Age + 1))
+
+## Lignes limites
+abline(h = lower_Age, col = "red", lty = 2, lwd = 2)
+abline(h = upper_Age, col = "red", lty = 2, lwd = 2)
+
+## Ajouter ligne moyenne
+abline(h = m_Age, col = "blue", lwd = 2)
+
+## Identification visuelle avec identify
+outliers_identify_Age <- data[c(8, 50, 136), ]
+kable(outliers_identify_Age, caption = "Outliers de `Age` repérés avec `identify`")
+
+## Identification des valeurs aberrantes par calcul
+outliers_Age <- data[data$Age < lower_Age | data$Age > upper_Age, ]
+kable(outliers_Age, caption = "Outliers de `Age` repérés avec les calculs")
+
+```
+
+
+g) Constituons 5 classes de même amplitude de la variable `Satisfaction`:
+```{r}
+classes_Sat <- creer_nclasses(data$Satisfaction, 5)
+
+kable(table(classes_Sat), caption = "5 Classes de la variable `Satisfaction`")
+
+```
+
+
+h) Constituons 4 classes de même amplitude de la variable `Age`:
+```{r}
+classes_Age <- creer_nclasses(data$Age, 4)
+
+kable(table(classes_Age), caption = "4 Classes de la variable `Age`")
+```
+
+
+i) Donnons les tableaux de contingences de `Age` vs `Satisfaction` : en effectifs, en fréquences, en pourcentages (arrondir au 100ème près). Utilisons `balloonplot` pour voir le tableau de contingence en effectif de `Age` vs `Satisfaction`:
+```{r, results='asis'}
+## Effectifs
+tab_Age_Sat <- table(classes_Age, classes_Sat)
+print(kable(tab_Age_Sat, caption = paste0("Tableau de contingence (effectifs): `Age` vs `Satisfaction`")))
+
+## Fréquences
+print(kable(round(prop.table(tab_Age_Sat), 3), caption = paste0("Tableau de contingence (fréquences): `Age` vs `Satisfaction`")))
+
+## Pourcentages
+print(kable(100*round(prop.table(tab_Age_Sat), 3), caption = paste0("Tableau de contingence (pourcentages): `Age` vs `Satisfaction`")))
+
+
+## Visualisation avec Balloonplot
+balloonplot(tab_Age_Sat, 
+            main = paste("Balloonplot Tableau de contingence Age VS Satisfaction"),
+            xlab = "Age",
+            ylab = "Satisfaction")
+
+```
+
+
+j) Représentons le nuage de points de la variable `Satisfaction` en fonction de la variable `Age`:
+```{r}
+plot(Satisfaction~Age, 
+     data=data, 
+     main="Nuage de points Satisfaction selon Age",
+     pch = 19, col = "blue")
+
+```
+
+
+k) Détectons dynamiquement un “intrus” avec `identify` et affichons le profil de cet “intrus”:
+```{r}
+idx_intrus <- 71
+kable(data[idx_intrus, ], caption = "Données de l'intrus")
+
+plot(Satisfaction~Age, 
+     data=data, 
+     main="Nuage de points Satisfaction selon Age",
+     pch = 19, col = "blue")
+
+# Mise en évidence de l'intrus avec un triangle rouge
+points(data$Age[idx_intrus], data$Satisfaction[idx_intrus],
+       col = "red", pch = 17, cex = 1.0)
+
+```
+
+
+Remarquons que:
+
+- L’individu a 32 ans, ce qui le place en dessous de la moyenne (41,99 ans) et de la médiane de l’échantillon, donc il est relativement jeune.
+- Son état civil est divorcé(e): ce qui est probablement peu fréquent dans l’échantillon.
+- Il a un enfant: ce qui est cohérent avec son profil.
+- Son niveau de stress est faible (8), tandis que son estime de soi est élevée (35,53), supérieure à la moyenne et à la médiane.
+
+l) Même si cet individu paraît atypique, ses données restent logiques et cohérentes entre elles (Satisfaction, Stress et Estime de soi). Il ne s’agit donc pas d’une erreur de saisie.
+
+
+m) Représentons le nuage de points de la variable `Satisfaction` en fonction de la variable `Age` en distinguant les femmes et les hommes. On utilisera la fonction `split`:
+```{r}
+sat_split  <- split(data$Satisfaction, data$Sexe)
+age_split  <- split(data$Age, data$Sexe)
+
+plot(age_split$Femme, sat_split$Femme,
+     col = "deeppink",
+     pch = 16,
+     xlab = "Age",
+     ylab = "Satisfaction",
+     main = "Satisfaction en fonction de l'âge selon le sexe")
+
+points(age_split$Homme, sat_split$Homme,
+       col = "darkgreen",
+       pch = 17)
+
+legend("topleft",
+       legend = c("Femmes", "Hommes"),
+       col = c("deeppink", "darkgreen"),
+       pch = c(16, 17))
+
+```
+
+
+n) Calculons par étapes la covariance entre la variable `Age` et la variable `Satisfaction`. Comparons avec celle donnée par R:
+```{r}
+x <- data$Age
+y <- data$Satisfaction
+
+x_bar <- mean(x)
+y_bar <- mean(y)
+
+cov_manuel <- sum((x - x_bar)*(y - y_bar)) / (length(x) - 1)
+cat("\nCovariance manuelle: ", cov_manuel, "\n")
+cat("\nCovariance R: ", cov(x, y), "\n")
+
+```
+
+
+
+o) Calculons par étapes la corrélation entre la variable `Age` et la variable `Satisfaction`. Comparons avec celle donnée par R:
+```{r}
+sd_x <- sd(x)
+sd_y <- sd(y)
+
+cor_manuel <- cov_manuel / (sd_x * sd_y)
+
+cat("\nCorrélation manuelle: ", cor_manuel, "\n")
+cat("\nCorrélation R: ", cor(x, y), "\n")
+```
+
+
+p) Donnons la matrice de corrélation entre les variables numériques (sauf le nombre d’enfants):
+```{r}
+data_cor <- data[, sapply(data, is.numeric) & names(data) != "Nbenfant"]
+mat_cor <- cor(data_cor)
+kable(mat_cor, caption="Matrice de corrélation sauf `Nbenfant`")
+
+```
+
+q) Représentons cette matrice graphiquement et commentons. On pourra utiliser la fonction `scatterplotMatrix`:
+```{r, fig.width=10, fig.height=8, dpi=300}
+library(car)
+
+scatterplotMatrix(data_cor,
+                  main = "Matrice de dispersion et corrélations",
+                  smooth = FALSE)
+
+```
+On peut remarquer que:
+
+- Les variables `Age` , `Satisfaction` et `Anciennete` sont fortement corrélées positivement entre elles.
+- Par ailleurs, la variable `Satisfaction` est aussi fortement corrélée positivement avec la variable `EstimeSoi`.
+- En outre, on peut voir que les distributions des variables `Age` , `Satisfaction`, `Anciennete` et `EstimeSoi` ont à peu près la même allure.
+- La distribution de la variable Salaire a la même queue à la fin mais diffère complètement au début.
+- La distribution de la variable `Stress` est, quant à elle, symétrique et ressemble à une distribution normale.
+
+
+###################################
+# Travail personnel 3 (ACP)
+###################################
+
+
+## Exercice 23.1 Création du jeu de données `X`
+Créons le jeu de données `X`:
+```{r}
+# Jeu de données
+X <- data.frame(
+  Z1 = c(1, 2, 3, 4, 9),
+  Z2 = c(5, 10, 8, 8, 12)
+)
+
+kable(X, caption = "Jeu de données `X`")
+
+```
+
+```{r}
+# Centrons et réduisons les variables
+Z1_bar <- mean(X$Z1)
+Z2_bar <- mean(X$Z2)
+
+sd_Z1 <- sd(X$Z1)
+sd_Z2 <- sd(X$Z2)
+
+
+# Jeu de données centrées réduites
+Z <- data.frame(
+  Z1 = (X$Z1 - Z1_bar)/sd_Z1,
+  Z2 = (X$Z2 - Z2_bar)/sd_Z2
+)
+
+kable(Z, caption = "Jeu de données `X` centrées réduites")
+```
+
+```{r}
+# Matrice de corrélation
+mat_cor <- (1/(nrow(Z)-1)) * t(as.matrix(Z)) %*% as.matrix(Z)
+
+# valeurs propres (variances des CP)
+eig <- eigen(mat_cor)
+
+kable(eig$values, caption = "Valeurs propres")
+
+kable(eig$vectors, caption = "Vecteurs propres")
+
+cat("\nLe pourcentage de variance expliquée par le 1er axe est: ", round(100 * eig$values[1]/dim(Z)[2], 2), "\n")
+cat("Le pourcentage de variance expliquée par le 2eme axe est: ", round(100 * eig$values[2]/dim(Z)[2], 2), "\n")
+```
+
+```{r}
+# Coordonnées des variables sur le plan des composantes principales (corrélation entre les variables et les composantes principales)
+coords <- t(t(eig$vectors) * sqrt(eig$values))
+rownames(coords) <- c("Z1", "Z2")
+colnames(coords) <- c("C1", "C2")
+
+kable(coords, caption = "Coordonnées des variables")
+```
+
+```{r}
+# Cercle de corrélation
+plot(0, 0, type="n", xlim=c(-1,1), ylim=c(-1,1),
+     xlab="C1", ylab="C2", asp=1,
+     main="Cercle de corrélation")
+symbols(0, 0, circles=1, add=TRUE, inches=FALSE, lwd=2)
+
+# Ajouter les vecteurs des variables
+arrows(0, 0, coords[,1], coords[,2], length=0.1, col="blue", lwd=2)
+
+# Ajouter les noms des variables au bout des vecteurs
+text(coords[,1]*1.1, coords[,2]*1.1, labels=rownames(coords), col="red", cex=1.2)
+```
+
+```{r}
+# Angle au centre entre Z1 et Z2
+num <- sum(coords[1,] * coords[2,])
+deno <- sqrt(sum(coords[1,]^2)) * sqrt(sum(coords[2,]^2))
+
+angle_rad <- acos(num/deno)
+
+# coefficient de corrélation entre X1 et X2 
+coeff_cor <- cos(angle_rad)
+cat("Coefficient de corrélation entre X1 et X2: ", coeff_cor)
+
+# Coordonnées des individus
+coords_ind <- as.matrix(Z) %*% eig$vectors
+
+kable(coords_ind, caption = "Coordonnées des individus")
+```
+
+## Exercice 23.3 Comparaison des résultats de `princomp` et `prcomp`
+```{r}
+# (c) Comparer avec les résultats trouvés avec les fonctions princomp et prcomp
+res_prcomp <- prcomp(X, scale. = TRUE)
+res_princomp <- princomp(X, cor = TRUE)
+
+# Valeurs propres
+res_prcomp$sdev^2
+res_princomp$sdev^2
+
+kable(res_prcomp$sdev^2, caption = "Valeurs propres `prcomp`")
+kable(res_princomp$sdev^2, caption = "Valeurs propres `princomp`")
+
+```
+
+```{r}
+# Vecteurs propres
+kable(res_prcomp$rotation, caption = "Vecteurs propres `prcomp`")
+
+# affichage avec kable nécessite unclass pour les objets de type loadings
+kable(unclass(res_princomp$loadings), caption = "Vecteurs propres `princomp`")
+```
+
+
+```{r}
+# Coordonnées des individus
+
+kable(res_prcomp$x, caption = "Coordonnées des individus `prcomp`")
+
+kable(res_princomp$scores, caption = "Coordonnées des individus `princomp`")
+
+```
+
+```{r}
+# (d) Décrire et utiliser les fonctions PCA du package FactoMineR, et comparer avec les résultats trouvés.
+library(FactoMineR)
+library(factoextra)
+
+res_pca <- PCA(X, scale.unit = TRUE, graph = TRUE)
+kable(res_pca$eig, caption = "Valeurs propres `PCA`")
+
+kable(res_pca$ind$coord, caption = "Coordonnées des individus `PCA`")
+
+```
+
+## Exercice 24. Données `stations`
+Chargeons les données, regardons la structure et affichons les premieres lignes:
+```{r, results='asis'}
+stations <- read.csv("stations.txt", sep="")
+print.str(stations)
+kable(head(stations), caption ="Aperçu des données `stations`")
+
+```
+
+Nos données sont quantitatives, sauf pour la variable `Nom`. On l'excluera pour réaliser une ACP sur le jeu de données. Affichons les valeurs propres et visualisons le screeplot:
+```{r}
+# Realisation de l'ACP
+res.pca.stations <- PCA(stations[, -1], scale.unit = TRUE, graph = FALSE)
+
+# Valeurs propres et screeplot
+kable(res.pca.stations$eig, caption = "Composantes Principales `PCA`: Données `stations`")
+
+fviz_eig(res.pca.stations, addlabels = TRUE, ylim = c(0, 55))
+```
+
+
+Visualisons maintenant la qualité de représentation des variables avec `corrplot`:
+```{r}
+# Qualité de représentation des variables
+library("corrplot")
+corrplot(res.pca.stations$var$cos2, is.corr=FALSE)
+```
+
+- On remarque que les variables sont `prixforf`, `pistes` et `remontee` sont tres bien représentées sur la premiere composante. Par ailleurs, la variable `altmin` est bien représentée sur la deuxieme composante et `kmfond` sur la 3 eme. 
+- La variable est la moins expliquée par les 3 premieres dimensions.
+
+Visualisons maintenant la contribution des variables aux 2 premières composantes principales:
+```{r}
+# Contributions des variables aux composantes principales C1 et C2
+res.pca.stations$var$contrib
+fviz_contrib(res.pca.stations, choice = "var", axes = 1:2)
+fviz_pca_var(res.pca.stations, col.var = "contrib",
+gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07") )
+```
+
+- Remarquons que les variables les plus contributives aux dimensions 1 et 2 sont `pistes`, `remontee` et `prixforf`.
+
+Visualisons maintenant la qualité de représentation et la contribution des individus aux 2 premières composantes principales:
+```{r}
+# Qualité et contribution des individus
+fviz_cos2(res.pca.stations, choice = "ind", axes = 1:2)
+fviz_contrib(res.pca.stations, choice = "ind", axes = 1:2)
+fviz_pca_ind(res.pca.stations, pointsize = "cos2", col.ind = "cos2",
+gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), repel = TRUE)
+```
+
+- Les individus les mieux représentés par les 2 premières composantes principales sont ceux avec un cos2 supérieur a 0.75.
+- Les individus les plus contributifs (contribuent plus que la moyenne) aux 2 premières composantes principales sont: `16`, `24`, `2`, `10`, `8`, `6`, `1` et `32`.
+
+
+###################################
+# Travail personnel 4 (AFC)
+###################################
+
+## Exercice 31.1 Données `USArrests`
+
+Le jeu de données `USArrests` a été chargé et avec la fonction `class`, on obtient facilement sa classe. Affichons les premières lignes:
+```{r}
+data(USArrests)
+cat("La classe de cet objet est: ", class(USArrests))
+kable(head(USArrests), caption ="Aperçu des données `USArrests`")
+```
+
+## Exercice 31.2. Fonctions `princomp` et `prcomp`
+Avec les fonctions `princomp` et `prcomp`, nous calculons les composantes principales de l’ACP (les scores des 50 états). Ici, on affiche que les scores des 5 premiers états selon chaque méthode:
+```{r}
+res_usa <- prcomp(USArrests, scale. = TRUE)
+res_usa1 <- princomp(USArrests, cor = TRUE)
+
+# scores des 50 états
+kable(head(res_usa$x), caption ="Aperçu des scores des 50 états (`prcomp`)")
+kable(head(res_usa1$scores), caption ="Aperçu des scores des 50 états (`princomp`)")
+```
+
+- On observe de petites différences numériques entre les résultats fournis par `prcomp` et `princomp`. Les autres différences observées portent uniquement sur le signe des axes principaux.
+
+## Exercice 31.3 Composantes principales avec notre fonction `gsvd`
+
+1. Après standardisation des données `USArrests` avec la fonction `scale`, nous obtenons:
+```{r}
+# (a) Standardiser les données USArrests avec la fonction scale.
+Z <- scale(USArrests)
+
+kable(head(Z), caption ="Aperçu des données `USArrests` standardisées")
+
+```
+
+2. Pour calculer les composantes principales de l’ACP avec la fonction manuelle `gsvd`, nous avons d'abord créé la dite fonction et en l'appliquant à notre jeu de données, nous avons obtenu les scores ci-dessous pour les 5 premiers états:
+```{r}
+# (b) Calculer avec la fonction gsvd les composantes principales de l’ACP et afficher avec la fonction head les résultats pour les premiers états.
+
+# Fonction GSVD : SVD généralisée avec métriques diagonales
+gsvd <- function(Z, r, c) {
+  # -----------------------------
+  # Entrées
+  # Z : matrice numérique (n × p)
+  # r : poids des lignes (vecteur de taille n)
+  # c : poids des colonnes (vecteur de taille p)
+  # -----------------------------
+  
+  Z <- as.matrix(Z)
+  n <- nrow(Z)
+  p <- ncol(Z)
+  
+  # Rang de Z
+  k <- qr(Z)$rank
+  
+  # Sauvegarde des noms
+  rown <- rownames(Z)
+  coln <- colnames(Z)
+  
+  # Matrices de métriques diagonales
+  N <- diag(r)
+  M <- diag(c)
+  
+  # -----------------------------
+  # Matrice transformée
+  # -----------------------------
+  Z_tilde <- diag(sqrt(r)) %*% Z %*% diag(sqrt(c))
+  
+  # SVD classique
+  svd_res <- svd(Z_tilde)
+  
+  
+  # Résultats GSVD
+  U <- diag(1 / sqrt(r)) %*% svd_res$u[, 1:k, drop = FALSE]
+  V <- diag(1 / sqrt(c)) %*% svd_res$v[, 1:k, drop = FALSE]
+  d <- svd_res$d[1:k]
+  
+
+  rownames(U) <- rown
+  rownames(V) <- coln
+  colnames(U) <- colnames(V) <- paste0("Dim", 1:k)
+  
+
+  return(list(
+    U = U,   # coordonnées des individus
+    V = V,   # coordonnées des variables
+    d = d    # valeurs singulières
+  ))
+}
+
+n <- nrow(Z)
+p <- ncol(Z)
+
+
+r <- rep(1/n, n)   # poids des lignes
+c <- rep(1, p)     # poids des colonnes
+
+res_gsvd <- gsvd(Z, r, c)
+
+# scores des 50 états
+ind_coords_gsvd <- res_gsvd$U %*% diag(res_gsvd$d)
+
+kable(head(ind_coords_gsvd), caption ="Aperçu des scores des 50 états (`gsvd`)")
+```
+
+3. Si on compare les résultats trouvés avec `gsvd` à ceux de `princomp` et `prcomp`, on peut voir que les valeurs des scores sont très proches, avec parfois un changement de signe sur certains axes.
+
+
+```{r}
+# (d) Comparer avec les résultats trouvés avec les fonctions PCA du package FactoMineR.
+
+usa_PCA <- PCA(Z, graph=FALSE)
+
+# scores des 50 états PCA
+
+kable(head(usa_PCA$ind$coord), caption ="Aperçu des scores des 50 états (`PCA`)")
+```
+4. Les résultats trouvés avec `gsvd` et ceux de la fonction `PCA` du package `FactoMineR` sont aussi très proches. Les changements de signe sur certains axes sont visibles mais cela ne change pas l'interprétation.
+
+## Exercice 32. Etude du lien entre les variables `CSP` et `HEB`
+
+On considère un ensemble de `18282` individus pour lesquels on connaît la CSP (modalités agriculteur AGRI, cadre supérieur `CADR`, inactif `INAC`, et ouvrier `OUVR`) et le choix d'hébergement pour les vacances HEB (modalités camping `CAMP`, `HOTEL`, location `LOCA`, et résidence secondaire `RESI`).
+
+Dans cet exercice, notre but sera de représenter les éventuels liens entre la catégorie socio-professionnelle `CSP` et le type d'hébergement choisi `HEB`.
+
+1. Créons le tableau de contingence et calculons la statistique du khi-deux avec `chisq.test`
+```{r}
+# Création du tableau de contingence
+tab_CSP_HEB <- matrix(
+  c(239, 155, 129, 0,
+    1003, 1556, 1821, 1521,
+    682, 1944, 967, 1333,
+    2594, 1124, 2176, 1038),
+  nrow = 4,
+  byrow = TRUE
+)
+
+# Ajout des noms des lignes et colonnes
+rownames(tab_CSP_HEB) <- c("AGRI", "CADR", "INAC", "OUVR")
+colnames(tab_CSP_HEB) <- c("CAMP", "HOTEL", "LOCA", "RESI")
+
+kable(tab_CSP_HEB, caption = "Tableau de contingence: `CSP` & `HEB`")
+
+# test et statistique du khi-deux 
+chisq.test(tab_CSP_HEB)
+```
+
+- Selon le résultat du test de $\chi^2$, la statistique vaut `2067.9` et la p-valeur est inférieure à `0.05`. On **rejette** donc l'hypothese d'indépendance des 2 variables `CSP` et `HEB`. 
+- Elles sont statistiquement significativement associées.
+
+**Par conséquent, on peut réaliser une AFC.**
+ 
+2. Donnons les profils-lignes et les profils-colonnes:
+```{r}
+# Profils-ligne : distribution des types d'hébergement pour chaque CSP
+profils_ligne <- prop.table(tab_CSP_HEB, margin = 1)
+
+kable(profils_ligne, caption = "Profils-lignes: `CSP` & `HEB`")
+
+# Profils-colonne : distribution des CSP pour chaque type d'hébergement
+profils_colonne <- prop.table(tab_CSP_HEB, margin = 2)
+
+kable(profils_colonne, caption = "Profils-colonnes: `CSP` & `HEB`")
+
+```
+
+On observe que:
+
+- 45% des agriculteurs choisissent `camping` comme hébergement.
+- 57% des campings sont habités par des ouvriers.
+- Les agriculteurs sont très rares dans tous les types d’hébergement.
+
+3. Réalisons une AFC sur le tableau de contingence:
+```{r}
+res_AFC <- CA(tab_CSP_HEB, graph=FALSE)
+
+# visualisation des valeurs propres
+fviz_screeplot(res_AFC, addlabels = TRUE, ylim=c(0, 88))
+```
+
+- La première dimension explique, à elle seule, 86,9 % de l’inertie totale. Néanmoins, afin de représenter les relations entre modalités dans un plan factoriel, il est d'usage de retenir les deux premiers axes.
+
+4. Vérifions que la statistique de $\chi^2$ égale la somme des valeurs propres multipliée par n:
+```{r}
+# statistique de chi2
+chi2 <- chisq.test(tab_CSP_HEB)$statistic
+
+# somme des valeurs propres
+
+# Somme des valeurs propres
+somme_vp <- sum(res_AFC$eig[,1])
+
+# Effectif total
+n <- sum(tab_CSP_HEB)
+
+cat("Chi2:", chi2, "\n")
+cat("n * somme des valeurs propres:", n * somme_vp, "\n")
+```
+
+5. Donnons les coordonnées des modalités:
+```{r}
+modalite_ligne <- get_ca_row(res_AFC)
+modalite_col <- get_ca_col(res_AFC)
+
+kable(modalite_ligne$coord, caption = "Coordonnées des modalités lignes")
+kable(modalite_col$coord, caption = "Coordonnées des modalités colonnes")
+
+```
+
+Représentons les graphiquement avec un biplot:
+```{r}
+# biplot
+fviz_ca_biplot(res_AFC, repel = TRUE)
+```
+
+Analysons un peu le graphe:
+
+- On peut vite remarquer que les ouvriers sont le plus associés aux campings.
+- Les cadres sont le plus associés aux résidences; et les inactifs aux hotels. 
+- Par contre, les agriculteurs ne sont associés à aucun type d'hébergement.
+
+6. Donnons les contributions et cosinus carrés:
+```{r}
+
+kable(modalite_ligne$contrib, caption = "Contributions des modalités lignes")
+kable(modalite_ligne$cos2, caption = "Cosinus carrés des modalités lignes")
+
+kable(modalite_col$contrib, caption = "Contributions des modalités colonnes")
+kable(modalite_col$cos2, caption = "Cosinus carrés des modalités colonnes")
+
+```
+
+7. Oui, il y a un effet Guttman:
+
+- La première dimension de l’AFC explique la majorité de l’inertie.
+- Les autres dimensions apportent très peu d’information.
+- Presque toutes les modalités lignes et colonnes sont bien représentées sur Dim 1. 
+
+
+## Exercice 33. Données `smoke`
+1. Chargeons le jeu de données `smoke` du package `ca` dans R avec la commande `data`. Affichons les premières données:
+```{r}
+# Charger le package
+library(ca)
+
+data(smoke, package = "ca")
+kable(head(smoke), caption ="Aperçu des données `smoke`")
+
+```
+
+
+2. **AFC et SVD généralisée**
+
+a) Construisons la matrice `F` des fréquences: 
+```{r}
+# Tableau de contingence
+tab_smoke <- smoke
+
+# Effectif total
+n <- sum(tab_smoke)
+
+# Matrice des fréquences
+F <- tab_smoke / n
+
+kable(F, caption = "Matrice `F` des fréquences")
+```
+
+Vecteurs r et c des distributions marginales:
+```{r}
+# distributions marginales lignes
+r <- rowSums(F)
+
+# distributions marginales colonnes
+c <- colSums(F)
+
+kable(r, caption = "Distribution marginale ligne (`smoke`)")
+kable(c, caption = "Distribution marginale colonne (`smoke`)")
+
+```
+
+Matrice `Z` des écarts à l’indépendance:
+```{r}
+# Matrice des écarts à l'indépendance
+Z <- F - r %*% t(c)
+
+Z
+kable(Z, caption = "Matrice `Z` des écarts à l’indépendance")
+```
+
+b) Calculer avec la fonction `gsvd` les matrices X et Y des coordonnées factorielles des profil-lignes et colonnes de l’AFC.
+
+```{r}
+res_smoke_gsvd <- gsvd(Z, r, c)
+
+# Coordonnées factorielles
+X <- res_smoke_gsvd$U   # lignes
+Y <- res_smoke_gsvd$V   # colonnes
+
+kable(X, caption = "Coordonnées factorielles des profil-lignes (`smoke`)")
+kable(Y, caption = "Coordonnées factorielles des profil-colonnes (`smoke`)")
+
+```
+
+c) Représentons avec la fonction `plot` les profil-lignes et les profil-colonnes sur le premier plan factoriel de l’AFC.
+```{r}
+# Représentation des profils-lignes
+plot(
+  X[,1], X[,2],
+  xlim = range(c(X[,1], Y[,1])) * 1.5,
+  ylim = range(c(X[,2], Y[,2])) * 1.5,
+  xlab = "Dim 1",
+  ylab = "Dim 2",
+  main = "AFC (GSVD) – Premier plan factoriel",
+  pch = 19,
+  col = "blue"
+)
+
+text(X[,1], X[,2], labels = rownames(X), pos = 3)
+
+# Ajout des profils-colonnes
+points(Y[,1], Y[,2], pch = 17, col = "red")
+
+text(Y[,1], Y[,2], labels = rownames(Y), pos = 3)
+
+```
+
+Sur ce premier plan factoriel, on peut observer que:
+
+- Les managers junior (`JM`) sont les plus associés au **tabagisme intense** (`heavy`). 
+- Les employés junior (`JE`) sont plutôt associés au **tabagisme modéré** (`medium`), tandis que les employés senior (`SE`) sont plus associés au **non-fumage** (`none`).
+
+d) Le pourcentage d’inertie expliquée par le premier plan factoriel de l’AFC peut être calcule avec les valeurs propres:
+```{r}
+# Valeurs propres
+vp <- res_smoke_gsvd$d^2
+
+# Pourcentage d'inertie du premier plan factoriel
+pct_inertie <- 100* vp/ sum(vp)
+
+inertie_plan1 <- sum(pct_inertie[1:2])
+cat("Le pourcentage d’inertie expliquée par le premier plan factoriel (Dim 1 + Dim 2) de l’AFC vaut: ", inertie_plan1)
+
+```
+
+- Encore une fois, on peut dire qu'il y a un **effet Guttman** puisque la première dimension explique, à elle seule, explique 99.193% de l'inertie totale.
+
+3. Retrouver ces résultats avec le package FactoMineR et la fonction CA.
+```{r}
+ca_smoke <- CA(smoke, graph=TRUE)
+ca_smoke$eig
+```
+
+- En réalisant l’analyse factorielle des correspondances avec la fonction `CA` de `FactoMineR`, on obtient les mêmes interprétations qu’avec notre fonction `gsvd`. 
+- Les légères différences observées dans les valeurs propres proviennent des conventions de normalisation et de pondération des lignes et des colonnes utilisées dans chaque méthode.
+
+## Exercice 34. Données `writers`
+Il s’agit ici de proposer une méthodologie d’analyse textuelle pour identifier les auteurs de deux fragements de texte anonymes. On connaît pour chacun de ces fragments de texte la fréquence d’apparition de certaines lettres. On supposeégalement que les auteurs de ces textes appartiennent à la liste suivante d’écrivains du 17ème et 18ème siècles : `Charles Darwin`, `René Descartes`, `Thomas Hobbes`, `Mary Shelley` et `Mark Twain`.
+
+Ainsi, 3 échantillons de 1000 caractères de textes de ces auteurs ont été examinés. La fréquence d’apparition de 16 lettres pour chacun de ces 15échantillons est donnée dans un tableau de contingence.
+
+1. Récupérons les données `writers` et chargons les dans R avec la commande `read.csv`. Affichons les données:
+```{r}
+writers <- read.csv("writers.csv")
+kable(writers, caption = "Jeu de données `writers`")
+```
+
+2. On considère dans un premier temps le tableau de contingence des 15 échantillons dont on connaît les auteurs. Effectuons un test du $\chi^2$ d’indépendence pour répondre à la question : "Les distributions des lettres sont-elles significativement différentes d’un échantillon à l’autre?"
+```{r}
+# Exclure les 2 dernières lignes et la première colonne (noms)
+tab_echant_lettres <- as.matrix(writers[-c((nrow(writers)-1), nrow(writers)), -1])
+
+# test de chi2
+chisq.test(tab_echant_lettres)
+```
+- La p-valeur étant inférieure à 0.05, on **rejette** l’hypothèse d’indépendance: Les distributions des lettres **diffèrent significativement** d’un échantillon à l’autre.
+
+3. Puisque les 2 variables sont significativement dépendantes, nous pouvons effectuer une AFC sur les 15 échantillons dont on connaît les auteurs:
+
+```{r}
+# pour afficher les noms des echantillons au lieu d'indices 
+rownames(tab_echant_lettres) <- writers[-c((nrow(writers)-1), nrow(writers)), 1]
+
+ca1 <- CA(tab_echant_lettres[, -1], graph = TRUE)
+```
+Remarquons que:
+
+- Les lettres **C**, **L**, **Y**, **W** et **G** ne semblent fortement associées à aucun échantillon.
+- Les lettres **F** et **R** sont les plus associées au **deuxième échantillon de `Mary Shelley`**.  
+- Les lettres **I** et **S** sont les plus associées au **deuxième échantillon de `René Descartes`**, tandis que la lettre **U** l'est à son **premier échantillon**.
+- Et la lettre **D** est la plus associée au **deuxième échantillon de `Mark Twain`**.
+
+
+
+4. Effectuons maintenant une AFC sur les 17 échantillons, en ajoutant les deux textes inconnus en lignes supplémentaires:
+```{r}
+rownames(writers) <- writers[,1]
+ca2 <- CA(writers[, -1], graph = TRUE)
+```
+Remarquons que:
+
+- La lettre **B** est la plus associée au **deuxième échantillon de `Charles Darwin`**.  
+- La lettre **P** est la plus associée au **troisième échantillon de `Charles Darwin`**, tandis que la lettre **C** l'est au **premier échantillon**.  
+- Les lettres **F** et **R** sont les plus associées au **deuxième échantillon de `Mary Shelley`**.  
+- Les lettres **M**, **I** et **S** sont particulièrement associées au **deuxième échantillon de `René Descartes`**.  
+- La lettre **U** est la plus associée au premier texte inconnu.
+
+Par ailleurs, Les échantillons d’un même auteur tendent à se regrouper.
+
+
+5. Réalisons avec la fonction `hclust` une classification ascendante hiérarchique de Ward des 17 échantillons décrits par leurs coordonnées factorielles sur les 4 premières dimensions de l’AFC.
+```{r}
+# récupérons les coordonnées des échantillons sur les 4 premières dimensions de l’AFC
+coords <- ca2$row$coord[, 1:4]
+
+# Calcul de la matrice des distances et classification hiérarchique
+d <- dist(coords)
+hc <- hclust(d, method = "ward.D2")  # CAH de Ward
+
+# Colorer les étiquettes des feuilles selon le cluster
+plot(hc)         
+```
+- La classification ascendante hiérarchique de Ward des 17 échantillons confirme encore une fois que les échantillons d'un même auteur tendent à se regrouper: 
+
+- `TH2` est plus proche de `TH3` que de `TH1`.
+- `RD2` est plus proche de `RD3` que de `RD1`.
+
+- Si on coupe l'arbre pour avoir 4 branches, tous les échantillons d'un même auteur se retrouvent presque tous dans un  même groupe. 
+
+- Remarquons aussi que le premier texte `TextX1` d'auteur inconnu est plus proche de l'échantillon `MT1` de `Mark Twain`, tandis que le second est plus proche de l'échantillon `TH1` de `Thomas Hobbes`.
+
+
+Affichons la partition en 4 classes :
+```{r}
+# Découpage en 4 classes
+clusters <- cutree(hc, k = 4)
+cat("Clusters: ", clusters)
+```
+
+
+
+###################################
+# Travail personnel 5 (ACM)
+###################################
+
+## Exercice 27. Données `chiens`
+
+1. Récupérons les jeux de données `chiens`. Il s’agit de données fictives ou 27 races de chiens sont décrites avec 7 variables qualitatives. Affichons la classe de cet objet et les premières données:
+```{r}
+load("chiens.rda")
+cat("Classe de l'objet 'chiens': ", class(chiens))
+
+kable(head(chiens), caption ="Aperçu des données `chiens`")
+
+```
+
+2. Créons une matrice H contenant la description des n = 27 races canines sur uniquement les p = 6 premières variables:
+```{r}
+H <- as.matrix(chiens[, 1:6])
+
+kable(head(H), caption ="Aperçu des données `chiens` avec 6 premières variables")
+```
+3. On va effectuer l’ACM de cette matrice H.
+
+d) Représentons dans un diagramme en barre les pourcentages d’inertie expliquée par les dimensions de l’ACM.
+```{r}
+H.acm <- MCA(H, graph = FALSE)
+fviz_screeplot(H.acm, addlabels = TRUE)
+```
+
+- Les axes à retenir seraient les 3 premières: elles expliquent 64.7% de l'inertie totale.
+
+e) Déterminons les matrices `X` et `Y` des coordonnées factorielles des races de chiens et des modalités des variables qualitatives sur les $k = 3$ premières dimensions. Modifions les noms des lignes et des colonnes dans `X` et `Y` afin qu’ils soient parlants.
+```{r}
+# Coordonnées des individus (races)
+X <- H.acm$ind$coord[, 1:3]
+rownames(X) <- rownames(H)
+colnames(X) <- c("Dim1", "Dim2", "Dim3")
+
+kable(head(X), caption = "Aperçu des Coordonnées des individus (races): Données `H`")
+
+# Coordonnées des modalités
+Y <- H.acm$var$coord[, 1:3]
+modalites_noms <- paste(H.acm$var$tab.disj, sep="")
+rownames(Y) <- rownames(H.acm$var$coord)
+colnames(Y) <- c("Dim1", "Dim2", "Dim3")
+
+kable(head(Y), caption = "Aperçu des Coordonnées des modalités: Données `H`")
+```
+f) Faisons un biplot des individus et des modalités dans le premier plan factoriel (1,2):
+```{r}
+# biplot des des individus (races) et des modalités
+fviz_mca_biplot(H.acm, repel=TRUE)
+```
+
+Remarquons, par exemple, que:
+
+- L’axe 1 oppose les races de petite taille et de petit poids aux races de grande taille et de poids élevé.
+- L’axe 1 oppose aussi les races les moins agressives aux races les plus agressives.
+- Quant à l'axe 2, il oppose les races les plus intelligentes (exemple: beauceron) aux races les moins intelligentes (exemple: saint_ber).
+- Il oppose aussi les races les moins affectueuses (bull_mass) aux races les plus affectueuses (caniche); les moins rapides (basset) aux plus rapides (dobermann, dalmatien).
+
+- Par ailleurs, les races comme `boxer`, `labrador`, `dalmatien` et `epagn_bre` ont des profils similaires.
+- Les races comme `bulldog`, `teckel`, `chihuahua` et `pekinois` ont des profils similaires.
+
+
+g) Utiliser la relation quasi-barycentrique pour retrouver les coordonnées factorielles de la modalité T++ à partir des coordonnées factorielles des races de chiens.
+```{r}
+# trouver toutes les races de chiens qui ont T++ comme taille
+races <- which(chiens$taille == "T++")
+
+coord_calculee <- colMeans(X[races, , drop = FALSE])
+kable(coord_calculee, caption = "Coordonnées factorielles de la modalité `T++` (barycentre)")
+
+```
+h) Affichons les rapports de corrélation entre la variable taille avec la première composante principale et entre la variable taille et la seconde composante principale:
+```{r}
+# Rapport de corrélation entre taille et les 2 premières dimensions
+kable(H.acm$var$eta2["taille", 1:2], caption = "Rapport de corrélation entre `taille` et les 2 premières dimensions")
+```
+
+- La variable `taille` est donc fortement corrélée avec la première composante principale mais faiblement corrélée avec la seconde composante principale.
+
+4. On va maintenant réaliser l'Analyse des Correspondances Multiples (ACM) des données sur les races canines en mettant la variable fonction en illustratif.
+
+a) Faisons l’ACM en indiquant la variable `fonction` comme `quali.sup`.
+```{r}
+# ACM avec la variable `fonction` comme `quali.sup`
+acm.chiens <- MCA(chiens,
+                  quali.sup = which(colnames(chiens) == "fonction"),
+                  graph = FALSE
+)
+```
+
+b) Retrouvons les résulats numériques et les graphiques de la question 2.
+
+1. Représentons dans un diagramme en barre les pourcentages d’inertie expliquée par les dimensions de l’ACM.
+```{r}
+fviz_screeplot(acm.chiens, addlabels = TRUE, ylim = c(0, 32))
+
+```
+
+- Les axes à retenir seraient les 3 premières: elles expliquent 64.7% de l'inertie totale.
+
+2. Déterminons les matrices `X` et `Y` des coordonnées factorielles des races de chiens et des modalités des variables qualitatives sur les $k = 3$ premières dimensions. Modifions les noms des lignes et des colonnes dans `X` et `Y` afin qu’ils soient parlants.
+```{r}
+# Coordonnées des individus (races)
+X <- acm.chiens$ind$coord[, 1:3]
+rownames(X) <- rownames(chiens)
+colnames(X) <- c("Dim1", "Dim2", "Dim3")
+
+kable(head(X), caption = "Aperçu des Coordonnées des individus (races) sur les 3 premières dimensions")
+
+# Coordonnées des modalités
+Y <- acm.chiens$var$coord[, 1:3]
+modalites_noms <- paste(acm.chiens$var$tab.disj, sep="")
+rownames(Y) <- rownames(acm.chiens$var$coord)
+colnames(Y) <- c("Dim1", "Dim2", "Dim3")
+
+kable(head(Y), caption = "Aperçu des Coordonnées des modalités sur les 3 premières dimensions")
+```
+
+3. Faisons un biplot des individus et des modalités dans le premier plan factoriel (1,2):
+```{r}
+# biplot des des individus (races) et des modalités
+fviz_mca_biplot(acm.chiens, repel=TRUE)
+```
+
+Remarquons, par exemple, que:
+
+- L’axe 1 oppose les races de petite taille et de petit poids, très souvent de compagnie, aux races de grande taille et de poids élevé, souvent de chasse ou d’utilité.
+- L’axe 1 oppose aussi les races les moins agressives (de compagnie) aux races les plus agressives (de chasse).
+- Quant à l'axe 2, il oppose les races les plus intelligentes (de chasse) aux races les moins intelligentes (d’utilité).
+- Par ailleurs, les races comme `boxer`, `labrador`, `dalmatien` et `épagneul epagn_bre` ne sont fortement associées à aucune fonction.
+- Alors que les races comme `bulldog`, `teckel`, `chihuahua` et `pekinois` sont fortement associées à la fonction d'animaux de compagnie.
+- Les races comme les `bergers allemands`, `épagneul français`, `colley` et `beauceron` sont fortement associées à la fonction d'animaux de chasse, tandis que les `fox_hound`, `bull_mass` et `dogue_all` sont plutôt associées a la fonction d’utilité.
+
+
+c) Retrouvons les rapports de corrélations entre les variables qualitatives et les deux premières composantes principales:
+```{r}
+kable(acm.chiens$var$eta2[, 1:2], caption = "Rapports de corrélations entre les variables qual. et les 2 premières CP")
+```
+
+
+- Les variables `taille`, `affect` sont plus fortement corrélées avec la première composante principale qu'avec la seconde.
+- Les variables `poids` et `velocite` sont plus fortement corrélées avec la seconde composante principale qu'avec la première.
+
+Faisons le plot des variables en fonction de ces rapports de corrélation en utilisant la fonction `plot.MCA.`
+```{r}
+plot.MCA(acm.chiens, choix = "var", axes = c(1, 2), cex = 1.2)
+
+```
+
+
+d) Ajoutons des données manquantes dans les données et appelons ce nouveau jeu `chiensNA` :
+```{r}
+# Copie des données originales
+chiensNA <- chiens
+
+# Ajout des valeurs manquantes aléatoires
+set.seed(123)
+n_missing <- 10       # nombre de valeurs manquantes à introduire
+
+for(i in 1:n_missing){
+  # choisir aléatoirement une ligne et une colonne
+  ligne <- sample(1:nrow(chiensNA), 1)
+  col <- sample(1:ncol(chiensNA), 1)
+  
+  # remplacer par NA
+  chiensNA[ligne, col] <- NA
+}
+
+# Vérification
+kable(head(chiensNA), caption ="Aperçu des données `chiensNA`")
+```
+
+e) Faisons l’ACM du jeu de données `chiensNA`:
+```{r}
+acm.chiensNA <- MCA(chiensNA, quali.sup = 7, graph=FALSE)
+fviz_mca_biplot(acm.chiensNA, repel=TRUE)
+```
+
+- Dans la fonction `MCA` de `FactoMineR`, les valeurs manquantes sont traitées comme des modalités spécifiques (`nom_variable.NA`), ce qui permet de conserver tous les individus dans l’analyse et d’évaluer l’impact des données manquantes sur la structure factorielle.
+- Par ailleurs, ces valeurs manquantes sont ignorées dans le calcul des coordonnées des individus: l’ACM est réalisée avec les informations disponibles, sans supprimer entièrement les lignes contenant des NAs.
+
+
+5. On va maintenant comparer l’ACM et l’AFC dans le cas particulier de deux variables qualitatives.
+
+a) Avec la fonction `CA` de `FactoMineR`, effectuons l’AFC du tableau de contingence croisant les variables `taille` et `poids`.
+```{r}
+# tableau de contingence croisant les variables taille et poids
+tab_taille_poids <- table(chiens$taille, chiens$poids)
+
+# AFC sur le tableau
+ac_taille_poids <- CA(tab_taille_poids, graph=FALSE)
+```
+
+
+b) Avec la fonction `MCA`, effectuons l’ACM des deux premières colonnes des données `chiens`:
+```{r}
+# ACM sur les 2 premières colonnes taille et poids
+acm_taille_poids <- MCA(chiens[, 1:2], graph=FALSE)
+```
+
+
+c) Comparons les valeurs propres des deux analyses et vérifions que nous retrouvons les relations du cours:
+```{r}
+
+kable(ac_taille_poids$eig, caption = "Valeurs propres AC")
+
+cat("\nSomme des valeurs propres AC :", sum(ac_taille_poids$eig[,1]), "\n")
+n <- nrow(chiens)
+chi2 <- chisq.test(tab_taille_poids)$statistic
+cat("chi²/n :", chi2/n, "\n")
+cat("Nombre de valeurs propres AC = ", nrow(ac_taille_poids$eig))
+cat("\nNombre d'axes AC = min(r,c) - 1 = ", min(nrow(tab_taille_poids), ncol(tab_taille_poids)) - 1, "\n")
+
+kable(acm_taille_poids$eig, caption = "Valeurs propres ACM")
+
+cat("\nSomme des valeurs propres ACM :", sum(acm_taille_poids$eig[,1]), "\n")
+p <- 2
+m1 <- length(unique(chiens$taille))
+m2 <- length(unique(chiens$poids))
+cat("(m1 + m2 - p)/p : ", (m1 + m2 - p)/p)
+cat("\nNombre de valeurs propres ACM = ", nrow(acm_taille_poids$eig))
+
+```
+
+
+Toutes les relations du cours ont été retrouvées:
+
+- La somme des valeurs propres de l'AFC est égale à $\frac{\chi^2}{n}$.
+- Le nombre d'axes de l'AFC est égal à $\min(r,c)-1$, qui est aussi le nombre de valeurs propres.
+- La somme des valeurs propres de l'AFCM est égale à $\frac{(m_1 + m_2 + \dots + m_p) - p}{p}$
+- Le nombre d'axes de l'AFCM est égal au double du nombre d'axes de l'AFC.
+
+
+
+## Exercice 28. ACM avec données manquantes et choix du nombre de composantes
+
+Le package **`missMDA`** offre des outils puissants pour gérer les **données manquantes** dans les analyses multivariées, notamment en **ACP** (Analyse en Composantes Principales) et **ACM** (Analyse des Correspondances Multiples).
+
+Il permet:
+
+- d’estimer automatiquement les valeurs manquantes,
+- de choisir le nombre de composantes par **validation croisée**,
+- et d’intégrer ce traitement dans une démarche d’analyse complète.
+
+### 1. **Estimation des données manquantes avec `(estim_ncpMCA / estim_ncpPCA)`**
+
+Ces fonctions utilisent une procédure de **validation croisée** pour déterminer le nombre optimal de composantes à retenir, afin de reconstruire les valeurs manquantes de manière cohérente avec la structure des données.
+
+Pour illustrer leur utilisation en ACM, nous allons l'appliquer à notre jeu de données `chiensNA`.
+```{r}
+library(missMDA)
+
+# Estimation du nombre optimal de dimensions pour ACM (en mode silencieux pour cacher la barre de progression)
+res <- capture.output({
+  res.est <- estim_ncpMCA(chiensNA, ncp.max = 5)
+})
+
+kable(head(chiensNA), caption ="Aperçu des données `chiensNA` avant imputation")
+cat("\nNombre optimal de dimensions pour la reconstruction des NAs: ", res.est$ncp)
+
+```
+
+La fonction renvoie le nombre optimal **3** de dimensions `ncp` à utiliser pour l’imputation.
+
+
+### 2. **Imputation des valeurs manquantes `(imputeMCA, imputePCA)`**
+
+Les valeurs manquantes sont estimées en projetant les individus dans l’espace factoriel défini par les composantes principales de l’ACP ou de l’ACM.
+Cette projection utilise les relations entre variables pour calculer des valeurs cohérentes avec la structure globale des données.
+Ainsi, le jeu de données imputé conserve les dépendances entre variables tout en permettant de réaliser l’analyse factorielle complète.
+
+Dans notre exemple, on obtient le jeu de données complétées suivant:
+
+```{r}
+# Imputation des valeurs manquantes dans chiensNA
+chiensNA.imp <- imputeMCA(chiensNA, ncp = res.est$ncp)
+chiensNA.complet <- chiensNA.imp$completeObs
+
+# Vérifier les données complétées
+kable(head(chiensNA.complet), caption ="Aperçu des données `chiensNA` après imputation")
+```
+
+Les NAs sont remplacés par des valeurs estimées, prêtes à être utilisées pour une ACM complète.
+
+### 3. **Réalisation d’ACM sur les données complétées**
+
+A partir de là, on peut réaliser une Analyse des Correspondances Multiples sur notre jeu de données complétées en utilisant la fonction `MCA` de `FactoMineR`:
+
+```{r}
+library(FactoMineR)
+library(factoextra)
+
+res.acm.complet <- MCA(chiensNA.complet, quali.sup = 7, graph = FALSE)
+
+# biplot
+fviz_mca_biplot(res.acm.complet, repel=TRUE)
+```
+
+- Comme François Husson l'a précisé, il faut noter que si on a une faible proportion de données manquantes, les pourcentages d'inertie des composantes principales peuvent être légèrement surestimés ou sous-estimés. Et si la proportion de données manquantes est importante, alors les pourcentages seront fortement surestimés ou sous-estimés.
+
+- Si on compare l'ACM sur les données originales complètes `chiens` et l'ACM sur les données imputées `chiensNA.complet`, les pourcentages d'inertie des 2 premières composantes principales C1 et C2 passent respectivement de 28.9% à 28.1% et de 23.1% à 22.8%. (donc légèrement sous-estimés)
+
+
+###################################
+# Travail personnel 6 (Classification)
+###################################
+
+## Exercice 29.1 CAH sur les données `decathlon2`
+
+On va d'abord faire une ACP pour réduire le mnombre de dimensions et ensuite, on va classifier sur les dimensions retenues.
+
+```{r}
+# Chargement des données
+data(decathlon2)
+
+# extraire les individus actifs et les variables actives pour l’ACP
+decathlon.active <- decathlon2[1 :23, 1 :10]
+
+# ACP avant classification pour réduire le mnombre de dimensions
+res.acp <- PCA(decathlon.active, scale.unit = TRUE, graph = FALSE)
+
+fviz_screeplot(res.acp, addlabels = TRUE) +
+  coord_cartesian(ylim = c(0, 43))
+
+```
+
+- Les 3 premières composantes principales expliquent 72.01885% de la variance totale. C’est un pourcentage acceptable.
+
+Réalisons une CAH sur les données en ne retenant que les 3 premières composantes principales:
+```{r}
+# Retenir les 3 premières composantes
+decathlon.acp <- res.acp$ind$coord[, 1:3]
+
+# matrice des distances euclidiennes entre les individus
+dist.decathlon <- dist(decathlon.acp, method = "euclidean")
+
+# CAH
+cah <- hclust(dist.decathlon, method = "ward.D2")  # Ward pour minimiser la variance intra-classe
+
+# Visualisation du dendrogramme
+plot(cah, labels = rownames(decathlon.acp), main = "CAH des sportifs sur les 3 premières composantes", 
+     xlab = "", sub = "", cex = 0.7)
+
+# dendrogramme avec matérialisation des groupes
+rect.hclust(cah, k=4)
+```
+Faisons la consolidation par k-means:
+```{r}
+library(fpc)
+
+library(cluster)
+library(factoextra)
+
+# Tester k = 2 à 10 clusters
+res <- fviz_nbclust(decathlon.acp, kmeans, method = "silhouette", k.max = 10, nstart = 50)
+
+# Ajouter les valeurs de silhouette sur le graphique
+res + 
+  geom_text(aes(label=round(y,3)), vjust=-0.5) +  # affiche les scores au-dessus des points
+  theme_minimal() +
+  ggtitle("Score moyen de la silhouette par nombre de clusters")
+
+
+
+# Calcul des scores CH pour k allant 2 à 10
+k_range <- 2:10
+ch_scores <- sapply(k_range, function(k) {
+  km <- kmeans(decathlon.acp, centers = k, nstart = 25)
+  cluster.stats(dist(decathlon.acp), km$cluster)$ch
+})
+
+# Transformation en data.frame pour ggplot
+df_ch <- data.frame(
+  k = k_range,
+  CH = ch_scores
+)
+
+# Visualisation
+ggplot(df_ch, aes(x = k, y = CH)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red", size = 3) +
+  geom_text(aes(label = round(CH, 1)), vjust = -0.5, size = 3) +
+  scale_x_continuous(breaks = k_range) +
+  labs(title = "Indice de Calinski-Harabasz pour différents k",
+       x = "Nombre de clusters k",
+       y = "Score Calinski-Harabasz") +
+  theme_minimal()
+
+```
+- La première méthode, basée sur la méthode de la silhouette, suggère un nombre optimal $k = 8$ clusters mais le score 0.35 reste très faible.
+- En plus, avoir 8 clusters impliquerait d'avoir plusieurs classes avec un seul individu: ce qui compliquerait interprétabilité des classes.
+- Par ailleurs, l'indice de Calinski-Harabasz ne suggère rien car il n'y a pas de pic.
+
+
+
+
+## Exercice 29.2 CAH sur les données `housetasks`
+
+On va d'abord faire une AFC pour réduire le nombre de dimensions et ensuite, on va classifier sur les dimensions retenues.
+```{r}
+data(housetasks)
+
+# Analyse des correspondances
+res.ca <- CA (housetasks, graph = FALSE)
+
+fviz_screeplot(res.ca, addlabels = TRUE)
+```
+- Ici, on retient les 2 premières dimensions. Retenir les 3 voudrait dire qu'on n'a fait aucune réduction.
+
+Réalisons une CAH sur les données en ne retenant que les 2 premières composantes principales:
+```{r}
+# Retenir les 2 premières composantes
+housetasks.afc <- res.ca$row$coord[, 1:2]
+
+# matrice des distances entre les tâches ménagères
+dist_mat <- dist(housetasks.afc)
+
+cah <- hclust(dist_mat, method = "ward.D2")
+
+# Visualisation du dendrogramme
+plot(cah, 
+     labels = rownames(housetasks.afc),
+     main = "CAH des tâches ménagères sur les 2 premières composantes",
+     xlab = "",
+     sub = "")
+
+# dendrogramme avec matérialisation des groupes
+rect.hclust(cah, k=4)
+
+```
+Faisons la consolidation par k-means:
+```{r}
+# Tester k = 2 à 10 clusters
+res <- fviz_nbclust(housetasks.afc, kmeans, method = "silhouette", k.max = 10, nstart = 50)
+
+# Ajouter les valeurs de silhouette sur le graphique
+res + 
+  geom_text(aes(label=round(y,3)), vjust=-0.5) +  # affiche les scores au-dessus des points
+  theme_minimal() +
+  ggtitle("Score moyen de la silhouette par nombre de clusters")
+
+
+
+# Calcul des scores CH pour k allant 2 à 10
+k_range <- 2:10
+ch_scores <- sapply(k_range, function(k) {
+  km <- kmeans(housetasks.afc, centers = k, nstart = 25)
+  cluster.stats(dist(housetasks.afc), km$cluster)$ch
+})
+
+# Transformation en data.frame pour ggplot
+df_ch <- data.frame(
+  k = k_range,
+  CH = ch_scores
+)
+
+# Visualisation
+ggplot(df_ch, aes(x = k, y = CH)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red", size = 3) +
+  geom_text(aes(label = round(CH, 1)), vjust = -0.5, size = 3) +
+  scale_x_continuous(breaks = k_range) +
+  labs(title = "Indice de Calinski-Harabasz pour différents k",
+       x = "Nombre de clusters k",
+       y = "Score Calinski-Harabasz") +
+  theme_minimal()
+
+```
+- La première méthode, basée sur la méthode de la silhouette, suggère un nombre optimal $k = 3$ clusters. Le score 0.518 n'est pas fort mais on pourrait quand même essayer.
+- L'indice de Calinski-Harabasz ne montre pas de pic et donc, on essaiera avec la proposition de la première méthode.
+
+Faisons dpnc une classification avec $k = 3$ clusters:
+```{r}
+# Visualisation du dendrogramme
+plot(cah,
+     labels = rownames(housetasks.afc),
+     main = "CAH des individus sur les 3 premières composantes",
+     xlab = "",
+     sub = "")
+
+# dendrogramme avec matérialisation de 3 clusters
+rect.hclust(cah, k=3)
+```
+
+
+
+## Exercice 29.3 CAH sur les données `poison`
+
+On va d'abord faire une AFCM pour réduire le nombre de dimensions et ensuite, on va classifier sur les dimensions retenues.
+```{r}
+library(FactoMineR)
+# chargement
+data(poison)
+
+kable(head(poison))
+# extraire les individus actifs et les variables actives pour l’ACM
+poison.active <- poison[1 :55, 5 :15]
+
+res.mca <- MCA(poison.active, graph = FALSE)
+
+# inertie moyenne pour décider du nombre d’axes à retenir
+inertie_moy <- 100 / ncol(poison.active)
+
+fviz_screeplot(res.mca, addlabels = TRUE) +
+  geom_hline(yintercept = inertie_moy, 
+             linetype = "dashed", 
+             color = "red") +
+  coord_cartesian(ylim = c(0, 35)) +
+  labs(title = "Scree plot ACM: données poison",
+       subtitle = paste("Ligne rouge = inertie moyenne (", 
+                         round(inertie_moy, 2), "%)", sep = ""))
+
+```
+
+- Le nombre d’axes retenus est déterminé à partir de l’inertie cumulée et de la comparaison à l’inertie moyenne. Les quatre premières dimensions, expliquant environ 67 % de l’inertie totale, sont conservées pour l’analyse.
+
+
+Réalisons une CAH sur les données en ne retenant que les 4 premières composantes principales:
+```{r}
+# Retenir les 4 premières composantes
+poison.afcm <- res.mca$ind$coord[, 1:4]
+
+# matrice des distances entre les tâches ménagères
+dist_mat <- dist(poison.afcm)
+
+cah <- hclust(dist_mat, method = "ward.D2")
+
+# Visualisation du dendrogramme
+plot(cah, 
+     labels = rownames(poison.afcm),
+     main = "CAH des individus sur les 4 premières composantes",
+     xlab = "",
+     sub = "")
+
+# dendrogramme avec matérialisation de 4 groupes
+rect.hclust(cah, k=4)
+```
+
+Faisons la consolidation par k-means:
+```{r}
+# Tester k = 2 à 10 clusters
+res <- fviz_nbclust(poison.afcm, kmeans, method = "silhouette", k.max = 10, nstart = 50)
+
+# Ajouter les valeurs de silhouette sur le graphique
+res + 
+  geom_text(aes(label=round(y,3)), vjust=-0.5) +  # affiche les scores au-dessus des points
+  theme_minimal() +
+  ggtitle("Score moyen de la silhouette par nombre de clusters")
+
+
+
+# Calcul des scores CH pour k allant 2 à 10
+k_range <- 2:10
+ch_scores <- sapply(k_range, function(k) {
+  km <- kmeans(poison.afcm, centers = k, nstart = 25)
+  cluster.stats(dist(poison.afcm), km$cluster)$ch
+})
+
+# Transformation en data.frame pour ggplot
+df_ch <- data.frame(
+  k = k_range,
+  CH = ch_scores
+)
+
+# Visualisation
+ggplot(df_ch, aes(x = k, y = CH)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red", size = 3) +
+  geom_text(aes(label = round(CH, 1)), vjust = -0.5, size = 3) +
+  scale_x_continuous(breaks = k_range) +
+  labs(title = "Indice de Calinski-Harabasz pour différents k",
+       x = "Nombre de clusters k",
+       y = "Score Calinski-Harabasz") +
+  theme_minimal()
+
+```
+
+- **Aucune des deux méthodes** ne suggère un nombre optimal de clusters car il n'y a pas de pic.
+
+## Exercice 29.3 CAH sur les données `OCDE`
+
+On va d'abord faire une AFDM pour réduire le nombre de dimensions et ensuite, on va classifier sur les dimensions retenues.
+
+```{r}
+OCDE <- read.csv2("OCDE.txt", sep="", comment.char="#")
+
+print.str(OCDE)
+```
+
+
+```{r}
+res.afdm <- FAMD(OCDE[, -c(1, 2)], graph = FALSE)
+
+kable(res.afdm$eig, caption = "Composantes principales de l'AFDM des données `OCDE`")
+```
+
+4. Visualisons les composantes principales et leur pourcentage de variance expliquée:
+```{r}
+fviz_eig(res.afdm, addlabels = TRUE) +
+  coord_cartesian(ylim = c(0, 50))
+```
+- Ici, on retiendra les 4 premières composantes principales.
+
+5. Réalisons une CAH sur les données en ne retenant que les 4 premières composantes principales:
+```{r}
+# Retenir les 4 premières composantes
+OCDE.afdm <- res.afdm$ind$coord[, 1:4]
+
+# matrice des distances entre les tâches ménagères
+dist_mat <- dist(OCDE.afdm)
+
+cah <- hclust(dist_mat, method = "ward.D2")
+
+# Visualisation du dendrogramme
+plot(cah,
+     labels = rownames(OCDE.afdm),
+     main = "CAH des individus sur les 3 premières composantes",
+     xlab = "",
+     sub = "")
+
+# dendrogramme avec matérialisation de 4 groupes
+rect.hclust(cah, k=4)
+```
+Faisons la consolidation par k-means:
+```{r}
+# Tester k = 2 à 10 clusters
+res <- fviz_nbclust(OCDE.afdm, kmeans, method = "silhouette", k.max = 10, nstart = 50)
+
+# Ajouter les valeurs de silhouette sur le graphique
+res + 
+  geom_text(aes(label=round(y,3)), vjust=-0.5) +  # affiche les scores au-dessus des points
+  theme_minimal() +
+  ggtitle("Score moyen de la silhouette par nombre de clusters")
+
+
+
+# Calcul des scores CH pour k allant 2 à 10
+k_range <- 2:10
+ch_scores <- sapply(k_range, function(k) {
+  km <- kmeans(OCDE.afdm, centers = k, nstart = 25)
+  cluster.stats(dist(OCDE.afdm), km$cluster)$ch
+})
+
+# Transformation en data.frame pour ggplot
+df_ch <- data.frame(
+  k = k_range,
+  CH = ch_scores
+)
+
+# Visualisation
+ggplot(df_ch, aes(x = k, y = CH)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red", size = 3) +
+  geom_text(aes(label = round(CH, 1)), vjust = -0.5, size = 3) +
+  scale_x_continuous(breaks = k_range) +
+  labs(title = "Indice de Calinski-Harabasz pour différents k",
+       x = "Nombre de clusters k",
+       y = "Score Calinski-Harabasz") +
+  theme_minimal()
+
+```
+- La première méthode, basée sur la méthode de la silhouette, suggère un nombre optimal $k = 2$ clusters. Le score 0.764 est convaincant.
+- Cependant, couper notre arbre en 2 branches impliquerait d'avoir une classe contenant seulement l'individu 30: ce qui ne serait pas du tout une bonne classification a proprement parler.
+
+- L'indice de Calinski-Harabasz ne montre pas de pic non plus.
+
+
+###################################
+# Travail personnel 7 (AFDM)
+###################################
+
+## Exercice 30. Données `tennismen`
+
+Nous disposons des données `tennismen` comprenant à la fois des variables quantitatives et des variables qualitatives. Les données étant mixtes, nous allons réaliser une Analyse Factorielle de Données Mixtes (AFDM) sur le jeu `tennismen`.
+
+1. Chargeons les données. Affichons la structure et les premières observations:
+
+```{r}
+library(readxl)
+
+# Lire uniquement la table AFDM_TENNIS
+tennismen <- read_excel("tennismen.xlsx", sheet = "AFDM_TENNIS")
+
+print.str(tennismen)
+kable(head(tennismen), caption= "Aperçu des données `tennismen`")
+```
+
+
+2. Identifions les variables quantitatives et qualitatives:
+```{r}
+# variables quantitatives
+vars_quant <- names(tennismen)[sapply(tennismen, is.numeric)]
+
+# variables qualitatives
+vars_qual <- names(tennismen)[sapply(tennismen, function(x) is.character(x) | is.factor(x))]
+
+cat("Variables quantitatives: ", vars_quant, "\n")
+cat("Variables qualitatives: ", vars_qual, "\n")
+```
+
+
+3. Réalisons l'AFDM en utilisant la fonction `FAMD` du package `FactoMineR`:
+```{r}
+# on lance l'afdm en excluant les noms de joueurs de la première colonne
+rownames(tennismen) <- tennismen$Joueur
+
+res.afdm <- FAMD(tennismen[, -1], graph = FALSE)
+
+kable(res.afdm$eig, caption = "Composantes principales de l'AFDM des données `tennismen`")
+```
+
+4. Visualisons les composantes principales et leur pourcentage de variance expliquée:
+```{r}
+
+# Seuil Kaiser
+seuil_kaiser <- 1
+
+# Calcul du seuil de Karlis–Saporta–Spinaki
+# Nombre d'individus
+n <- nrow(tennismen)
+
+# Variables quantitatives
+vars_quant <- names(tennismen)[sapply(tennismen, is.numeric)]
+
+# Variables qualitatives
+vars_qual <- names(tennismen)[sapply(tennismen, function(x) is.character(x) | is.factor(x))]
+
+# Nombre de modalités des variables qualitatives
+nb_modalites <- sum(sapply(tennismen[vars_qual], function(x) length(unique(x))))
+
+# P = nb. quanti + nb. modalités quali
+P <- length(vars_quant) + nb_modalites
+
+
+# Valeur du seuil de Karlis–Saporta–Spinaki
+seuil_kss <- 1 + 2 * sqrt((P - 1) / (n - 1))
+
+cat("\nSeuil de Kaiser–Guttman", seuil_kaiser, "\n")
+cat("Seuil de Karlis–Saporta–Spinaki", seuil_kss, "\n")
+
+
+# Extraction des valeurs propres
+valeurs_propres <- res.afdm$eig[, "eigenvalue"]
+
+# Visualisation des valeurs propres avec les 2 seuils
+barplot(valeurs_propres, names.arg = paste0("Comp.", 1:length(valeurs_propres)),
+        col = "skyblue", ylim = c(0, 5), main = "Valeurs propres - AFDM", ylab = "Valeurs propres")
+abline(h = seuil_kaiser, col = "red", lty = 2, lwd = 2)
+text(x = length(valeurs_propres) + 0.5, y = seuil_kaiser, labels = "Seuil Kaiser", pos = 3, col = "red")
+
+abline(h = seuil_kss, col = "darkgreen", lty = 2, lwd = 2)
+text(x = length(valeurs_propres) + 0.5, y = seuil_kss, labels = "Seuil KSS", pos = 3, col = "darkgreen")
+
+
+
+# Visualisation des pourcentages de variance expliquée
+fviz_eig(res.afdm, addlabels = TRUE) +
+  coord_cartesian(ylim = c(0, 40)) +
+  labs(title = "Screeplot AFDM: Données tennismen",
+       y = "Pourcentage de variance expliquée")
+
+```
+
+- Comme vous pouvez le remarquer, le seuil de de Karlis–Saporta–Spinaki est trop restrictif.
+- Par conséquent, selon la Règle de Kaiser–Guttman, on devrait retenir les 4 premières composantes qui ont toutes une valeur propre supérieure à 1 et qui, ensemble, expliquent 75.69% de l'information totale.
+
+
+5. Visualisons maintenant les joueurs de tennis sur le premier plan factoriel:
+```{r}
+library(ggplot2)
+
+# Coordonnées des individus sur le premier plan factoriel PC1 et PC2
+coord_ind <- res.afdm$ind$coord[, 1:2]
+coord_ind <- as.data.frame(coord_ind)
+coord_ind$Joueur <- rownames(tennismen)
+
+# Coordonnées des modalités sur le premier plan factoriel PC1 et PC2
+coord_mod <- res.afdm$quali.var$coord[, 1:2]
+coord_mod <- as.data.frame(coord_mod)
+coord_mod$Modalite <- rownames(coord_mod)
+
+# Coordonnées des variables quantitatives sur le premier plan factoriel PC1 et PC2
+coord_var_quant <- res.afdm$quanti.var$coord[, 1:2]
+coord_var_quant <- as.data.frame(coord_var_quant)
+coord_var_quant$Var <- rownames(coord_var_quant)
+
+# Pourcentage de variance expliquée
+pct <- round(res.afdm$eig[, "percentage of variance"], 1)
+
+# Visualisation des individus et des modalités sur le premier plan factoriel
+ggplot() +
+  # individus
+  geom_point(data = coord_ind, aes(x = Dim.1, y = Dim.2), color = "blue", size = 3) +
+  geom_text(data = coord_ind, aes(x = Dim.1, y = Dim.2, label = Joueur),
+            vjust = -0.5, hjust = 0.5, size = 3) +
+  
+  # modalités
+  geom_point(data = coord_mod, aes(x = Dim.1, y = Dim.2), color = "red", shape = 17, size = 3) +
+  geom_text(data = coord_mod, aes(x = Dim.1, y = Dim.2, label = Modalite),
+            vjust = -0.5, hjust = 0.5, color = "red", size = 4) +
+  
+  # variables quantitatives
+  geom_point(data = coord_var_quant, aes(x = Dim.1, y = Dim.2), color = "orange", shape = 20, size = 4) +
+  geom_text(data = coord_var_quant, aes(x = Dim.1, y = Dim.2, label = Var),
+            vjust = -0.5, hjust = 0.5, color = "orange", size = 4) +
+  
+  geom_vline(xintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  geom_hline(yintercept = 0, 
+             linetype = "dashed", 
+             color = "black") +
+  labs(title = "Plan factoriel des joueurs de tennis, des modalités et variables quantitatives",
+       x = paste0("Dim 1 (", pct[1], "%)") , y = paste0("Dim 2 (", pct[2], "%)")) +
+  theme_minimal()
+
+```
+
+
+- On peut dire que:
+  - L'axe 2 oppose les joueurs de latéralité `gaucher` des individus de latéralité `droitier`.
+  - Ce même axe oppose les joueurs qui sont `vainqueurs` de Roland Garros de ceux qui arrivent en `finale` ou en `demi-finale`.
+  - L'axe 2 oppose aussi les joueurs qui tiennent la raquette avec `deux mains` de ceux qui la tiennent qu'avec `une main`.
+  - Le joueur `Borg` parait atypique vu son éloignement des autres joueurs.
+  - Les joueurs de tennis `Federer`, `Nadal`, `Vilas`, `Lendi` et `Connors` sont tous des gauchers.
+  - Les joueurs qui sont `droitiers` et qui tiennent la raquette avec `deux mains` comme `Djokovic`, `Agassi` et `Wilander`, sont fortement associés à la modalité `vainqueurs` et aux nombres de `titres Grand Chelem`.
+  - Le joueur `Nastase` est fortement associé aux nombres de Finales, aux nombres de Titres.
+  - Les gauchers finissent rarement vainqueurs du Roland Garros.
+  - Les gauchers comme `Lendl` et `Vilas` ont joué beaucoup de `Finales`.
+
+
+
+6. Visualisons maintenant les variables sur le premier plan factoriel:
+```{r}
+# Contributions des variables sur le premier plan factoriel
+fviz_contrib(res.afdm, choice = "var", axes = c(1,2),
+             fill = "blue",
+             title = "Contributions des variables au premier plan factoriel")
+
+# Graphique des variables sur le premier plan factoriel
+fviz_famd_var(res.afdm,
+             axes = c(1,2),
+             col.var = "contrib",
+             gradient.cols = c("blue","orange","red"),
+             repel = TRUE,
+             title = "Plan factoriel des variables")
+```
+- Les variables qui contribuent le plus à la dimension 1 sont `Finales` et `Titres`.
+- Celles qui contribuent le plus à la dimension 2 sont `MainsRevers` et `BestClassDouble.`
+
+
+
+
+
+
+
+
+
+
+
+###################################
+# Projet personnel
+###################################
+
+1. Chargeons les données `départements` et faisons un résumé descriptif standard, tout en affichant les premières observations:
+```{r, results='asis'}
+departements <- read.csv("departements.txt", sep="")
+print.str(departements)
+print.summary(df=departements)
+kable(round(head(departements), 2), caption="Aperçu des données `départements`")
+```
+
+- Notre jeu de données comprend 95 observations pour 15 variables toutes quantitatives. Ceci nous suggère déjà que la méthode d'analyse appropriée pour ce jeu de données est l'Analyse des Composantes Principales (ACP).
+- Mais, bien avant de réaliser l'ACP, remarquons d'abord que les variables `FISC`, `CRIM` et `FE90` prennent de très grandes valeurs. Ceci suggère la nécessité d'une standardisation des données.
+
+2. Standardisons nos données:
+```{r}
+departements.cr <- as.data.frame(scale(departements))
+
+kable(round(head(departements.cr), 1), caption="Aperçu des données `départements` standardisées")
+```
+
+3. Ajoutons les noms de tous les départements comme indices des lignes.
+
+Notons que dans le jeu de données, le nom du $20^{ème}$ département a été omis alors que les données correspondantes ont été bien enregistrées. On le notera par `Dept20`.
+```{r}
+# Noms de tous les départements sans le 20-ème
+noms_dept <- c(
+  "Ain","Aisne","Allier","Alpes Haute Provence","Hautes Alpes",
+  "Alpes Maritimes","Ardèche","Ardennes","Ariège","Aube",
+  "Aude","Aveyron","Bouches du Rhône","Calvados","Cantal",
+  "Charente","Charente Maritime","Cher","Corrèze", NA, "Côte d'Or",
+  "Côtes du Nord","Creuse","Dordogne","Doubs","Drôme",
+  "Eure","Eure et Loir","Finistère","Gard","Haute Garonne",
+  "Gers","Gironde","Hérault","Ille-et-Vilaine","Indre",
+  "Indre et Loire","Isère","Jura","Landes","Loir et Cher",
+  "Loire","Haute Loire","Loire Atlantique","Loiret","Lot",
+  "Lot et Garonne","Lozère","Maine et Loire","Manche","Marne",
+  "Haute Marne","Mayenne","Meurthe et Moselle","Meuse","Morbihan",
+  "Moselle","Nièvre","Nord","Oise","Orne","Pas de Calais",
+  "Puy de Dôme","Pyrénées Atlantiques","Hautes Pyrénées",
+  "Pyrénées Orientales","Bas Rhin","Haut Rhin","Rhône",
+  "Haute Saône","Saône et Loire","Sarthe","Savoie","Haute Savoie",
+  "Paris","Seine Maritime","Seine et Marne","Yvelines","Deux Sèvres",
+  "Somme","Tarn","Tarn et Garonne","Var","Vaucluse","Vendée",
+  "Vienne","Haute Vienne","Vosges","Yonne","Territoire Belfort",
+  "Essonne","Hauts de Seine","Seine Saint Denis","Val de Marne","Val d'Oise"
+)
+
+# Ajout du 20-ème en tant que Dept20
+noms_dept[20] <- "Dept20"
+rownames(departements.cr) <- noms_dept
+
+# Aperçu avec les 10 premières variables pour un meilleur rendu
+kable(round(head(departements.cr[, 1:10]), 2), caption="Aperçu des données `départements` avec les noms ")
+```
+
+4. Analysons les corrélations entre les variables socioéconomiques:
+```{r, fig.width=10, fig.height=8, dpi=300}
+# Calcul des corrélations (en excluant les noms DEPT)
+matrice_cor <- cor(departements.cr, use="pairwise.complete.obs")
+
+# Visualisation avec corrplot
+library(corrplot)
+
+corrplot(matrice_cor, method="color", type="upper", 
+         tl.cex=0.8, addCoef.col="black", number.cex=0.7)
+
+```
+
+
+On peut remarquer que certaines variables sont fortement liées et de manière logique:
+
+- Les variables `AGE` et `JEUN` sont fortement corrélées négativement: ce qui est cohérent puisque plus il y a de jeunes, moins il y a de personnes âgées.
+- Les variables `URBR` (urbanisation) et `AGRI` (agriculteur) sont aussi fortement corrélées négativement: ce qui est encore logique géographiquement puisqu'en pratique, les agriculteurs ne vivent pas dans les milieux urbains.
+- Par ailleurs, les variables`PROF` et `URBR` , tout comme `CADR` et `URBR`sont positivement corrélées: c'est encore logique car dans les zones urbaines, il y a généralement plus de cadres supérieurs et plus de professions intermédiaires.
+- Les variables `CRIM` et `URBR` sont aussi fortement corrélées positivement: ce qui suggère logiquement que le taux de criminalité est plus élevé dan les zones urbaines.
+- Et pour finir, les variables `AGE` et `FE90` sont fortement corrélées négativement: ce qui suggère logiquement que le taux de fécondité devient plus faible quand la part de personnes âgées augmente. 
+- A l'inverse, les variables `JEUN` et `FE90` sont, en effet, fortement corrélées positivement car plus il y a de jeunes, plus il y a de naissances et donc, plus le taux de fécondité augmente.
+
+5. Visualisons les nuages de points par paire pour mettre en évidence ces relations:
+```{r, fig.width=10, fig.height=8, dpi=300}
+# Identifier les paires fortement corrélées
+seuil <- 0.7
+paires_fortes <- which(abs(matrice_cor) >= seuil & abs(matrice_cor) < 1, arr.ind = TRUE)
+
+# Supprimer les doublons (symétrie de la matrice)
+paires_fortes <- paires_fortes[paires_fortes[,1] < paires_fortes[,2], ]
+
+# Extraire les noms des variables fortement corrélée à partir des indices
+vars_fortes <- unique(c(rownames(matrice_cor)[paires_fortes[,1]],
+                        colnames(matrice_cor)[paires_fortes[,2]]))
+
+# Pairs plot
+pairs(departements.cr[ , vars_fortes],
+      main="Nuages de points des variables fortement corrélées",
+      pch=19, col="blue")
+
+```
+
+
+- Les nuages de points confirment, en effet, l’existence de corrélations fortement positives ou fortement négatives entre certaines de nos variables socioéconomiques. Ces relations mettent en évidence des redondances dans l’information contenue dans le jeu de données.
+- D’où la nécessité de réaliser une Analyse des Composantes Principales sur notre jeu de données afin de réduire la dimensionalité, de synthétiser l’information et de limiter l'effet de ces corrélations.
+
+6. Réalisons donc une ACP sur notre jeu de données `départements` standardisées:
+```{r}
+# Réalisation de l'ACP sur nos 15 variables quantitatives
+res.pca <- PCA(departements.cr,  # variables quantitatives
+               scale.unit = FALSE,       # données déjà standardisées
+               graph = FALSE)
+
+# Composantes Principales de l'ACP
+fviz_eig(res.pca, addlabels = TRUE) +
+  coord_cartesian(ylim = c(0, 46))
+```
+
+
+- Pour nos analyses ultérieures, nous retiendrons les **3 premières composantes principales**, qui expliquent ensemble 75,9% de la variance totale.
+- Chacune de ces composantes possède une valeur propre supérieure à 1, ce qui signifie qu’elle explique une part de variance supérieure à celle d’une variable d'origine.
+- La méthode du coude (critère de Kaiser), appliquée sur le screeplot des valeurs propres, suggère également que les 3 premières composantes suffisent pour expliquer l’essentiel de l’information contenue dans les données.
+
+```{r, fig.width=10, fig.height=8, dpi=300}
+# Graphique des départements sur le premier plan factoriel
+fviz_pca_ind(res.pca,
+             axes = c(1,2),
+             repel = TRUE,
+             geom = c("point", "text"),
+             label = "ind",
+             col.ind = "blue",
+             labelsize = 0.5,
+             title = "Plan factoriel des départements")
+
+```
+
+
+En analysant le plan factoriel des individus, on peut dire que:
+
+- Les départements comme `Gers`, `Dordogne`, `Cantal`, `Lot` et `Aveyron` sont très proches et donc, ils ont des profils socio-économiques similaires.
+- De même, d'autres départements comme `Essonne`, `Yvelines`, `Seine Saint Denis` et `Val d'Oise` ont aussi des profils socio-économiques similaires. 
+- Par ailleurs, les départements `Paris` et `Alpes Maritimes` présentent un profil socio-économique atypique par rapport aux autres départements, le reste formant un nuage relativement rond.
+
+
+```{r}
+# Contributions des variables sur le premier plan factoriel
+fviz_contrib(res.pca, choice = "var", axes = c(1,2),
+             fill = "blue",
+             title = "Contributions des variables au premier plan factoriel")
+
+# Graphique des variables sur le premier plan factoriel
+fviz_pca_var(res.pca,
+             axes = c(1,2),
+             col.var = "contrib",
+             gradient.cols = c("blue","orange","red"),
+             repel = TRUE,
+             title = "Plan factoriel des variables")
+
+```
+
+On peut vite remarquer que:
+
+- Les 6 variables les plus contributives au premier plan factoriel sont les variables `AGE`, `JEUN`, `URBR`, `PROF`, `AGRI` et `CRIM` et celle qui contribue le moins est `CHOM`.
+- Les variables `FISC`, `CRIM`, `EMPL`, `CADR`, `ETRA`, `URBR`, `PROF` et `TXCR` pointent globalement vers la même direction. Cela indique que ces variables sont  fortement corrélées positivement et donc, les départements qui présentent un taux élevé pour l’une tendent également à présenter des valeurs élevées pour les autres.
+- Par ailleurs, les variables `AGE`, `ARTI` et `CHOM` pointent plutôt en direction opposée par rapport à `JEUN` et `FE90`: ces relations ont, d'aileurs, été mises en évidence un peu plus tôt dans le rapport.
+
+
+```{r, fig.width=10, fig.height=8, dpi=300}
+# biplot des départements et des variables sur le premier plan factoriel
+
+fviz_pca_biplot(res.pca,
+                axes = c(1,2),
+                repel = TRUE,
+                col.ind = "blue",
+                col.var = "orange",
+                title = "Biplot des départements avec les variables")
+```
+
+
+- Comme nous l'avions souligné précédemment, les départements tels que `Haut de Seine`, `Val de Marne`, `Bouche du Rhone`, `Rhone` et `Savoie` et `Isère`, qui présentent un taux élevé d'urbanisation, tendent également à présenter des taux élevés d'emploi, de criminalité et de fiscalité locale ainsi que de croissance démographique plus ou moins marquée. Ces départements se distinguent ainsi par un profil socio-économique plus marqué en termes de population active qualifiée, urbanisation, fiscalité et criminalité.
+- Ces départements présentent aussi des parts élevés d'employés, de cadres supérieurs et d'étrangers,  ces derniers étant souvent attirés par des opportunités d'emploi ou le tourisme.
+- D'autres départements, comme `Pyrénées Atlantiques`, `Alpes Hautes Provences`, `Aude` et `Hautes Alpes`, seraient caractérisés par un fort taux de chômage.
+- Et, par ailleurs, d'autres comme `Marne`, `Doubs`, `Pas de Calais` et `Ain` sont caractérisés par une part élevée de jeunes.
+
+En gros, l'axe 1 oppose les départements les plus urbanisés aux départements les plus ruraux tandis que l'axe 2 oppose les départements majoritairement jeunes des départements majoritairement vieux. 
+
+On pourrait même dire que l'axe  1 oppose les départements dont l’économie est fortement influencée par le secteur primaire de ceux dont l’économie est surtout marquée par les secteurs tertiaires et quaternaires.
+
+
+7. Maintenant que nous avons réalisé une ACP sur nos données et choisi de retenir les 3 premières composantes principales, procédons à une **Classification Ascendante Hiérarchique** afin de regrouper les départements présentant des profils socio-économiques similaires:
+
+```{r, fig.width=10, fig.height=8, dpi=300}
+# Extraction des coordonnées des individus sur les 3 premières composantes principales
+coord_dept <- res.pca$ind$coord[, 1:3]
+
+# Calcul de la distance euclidienne entre les départements
+dist_dept <- dist(coord_dept)
+
+# Classification ascendante hiérarchique avec la methode de Ward
+cah <- hclust(dist_dept, method = "ward.D2")
+
+# Visualisation du dendrogramme
+fviz_dend(cah,
+          k = 4,                    # nombre de clusters (qu'on consolidera plus tard)
+          rect = TRUE,              
+          rect_fill = TRUE,         
+          rect_border = "lightgreen",  
+          labels_track_height = 0.8,
+          cex = 0.7,                
+          main = "Dendrogramme - CAH des départements",
+          xlab = "Départements",
+          ylab = "Distance") 
+```
+
+
+Sans surprise, on remarque que:
+
+- Les départements comme `Paris`, `Rhône`, `Isère`, `Savoie`, `Val de Marne` et `Hauts de Seine` se retrouvent dans le même groupe. 
+- En même temps, si on coupait l'arbre plus bas, Paris se serait retouvé tout seul et cela mettrait encore l'emphase sur le fait qu'il s'agit d'un département plutôt atypique.
+- Le 20-ème département dont le nom nous est inconnu se retrouve dans le premier groupe avec `Pyrénées Orientales`, `Alpes Hautes Provence`, `Aude` etc...
+- Le cluster `bleu` est le plus représenté dans l’échantillon ; il regroupe N individus, ce qui en fait le cluster majoritaire. 
+
+8. On va compléter notre analyse par une `consolidation par K-means` et l’évaluation par la méthode de la silhouette pour déterminer le nombre optimal de clusters et la qualité de la classification:
+```{r}
+library(cluster)
+library(factoextra)
+
+# Tester k = 2 à 10 clusters
+res <- fviz_nbclust(coord_dept, kmeans, method = "silhouette", k.max = 10, nstart = 50)
+
+# Ajouter les valeurs de silhouette sur le graphique
+res + 
+  geom_text(aes(label=round(y,3)), vjust=-0.5) +  # affiche les scores au-dessus des points
+  coord_cartesian(ylim = c(0, 0.45)) +
+  theme_minimal() +
+  ggtitle("Score moyen de la silhouette par nombre de clusters")
+
+
+```
+
+- Ici, pour $k = 4$ clusters, le score est maximal mais reste faible.
+- Nous essaierons quand même avec 4 clusters.
+
+9. Réalisons la classification K-means avec **4 clusters** et visualisons les clusters sur le premier plan factoriel:
+```{r, fig.width=10, fig.height=8, dpi=300}
+library(ggrepel)
+library(ggplot2)
+library(dplyr) 
+
+set.seed(123)
+res.kmeans <- kmeans(coord_dept, centers = 4, nstart = 100)
+
+
+# Data.frame avec coordonnées PCA, clusters et noms
+df_ind <- as.data.frame(res.pca$ind$coord[, 1:2])
+df_ind$dept <- rownames(res.pca$ind$coord)
+df_ind$cluster <- factor(res.kmeans$cluster)
+
+# Data.frame pour les variables
+df_var <- as.data.frame(res.pca$var$coord[, 1:2])
+df_var$var <- rownames(res.pca$var$coord)
+
+# polygones convexes pour les clusters
+df_poly <- df_ind %>%
+  group_by(cluster) %>%
+  slice(chull(Dim.1, Dim.2)) %>%
+  ungroup()
+
+# Calcul du facteur d'échelle
+max_ind <- max(abs(df_ind[,1:2]))
+max_var <- max(abs(df_var[,1:2]))
+mult <- max_ind / max_var * 0.7
+
+ggplot(df_ind, aes(x = Dim.1, y = Dim.2, color = cluster)) +
+  geom_point(size = 3) +
+  geom_text_repel(aes(label = dept), size = 3, max.overlaps = Inf) +
+  geom_polygon(data = df_poly, aes(x = Dim.1, y = Dim.2, fill = cluster),
+               alpha = 0.2, color = NA) +
+  
+  # Ajout des variables
+  geom_segment(data = df_var,
+               aes(x = 0, y = 0, xend = Dim.1*mult, yend = Dim.2*mult),
+               arrow = arrow(length = unit(0.2, "cm")),
+               color = "red") +
+  geom_text_repel(data = df_var,
+                  aes(x = Dim.1*mult, y = Dim.2*mult, label = var),
+                  color = "red", size = 3) +
+  theme_minimal() +
+  labs(title = "Clusters des départements sur le premier plan factoriel")
+
+
+```
+
+Nous pouvons observer globalement que:
+
+- Les polygones convexes délimitent correctement les 4 groupes, avec un chevauchement minimal.
+
+Et si on interprétait les classes:
+
+- La classe `rouge` comprend des départements comme `Paris`, `Rhône`, `Isère`, `Savoie`, `Val de Marne` et `Hauts de Seine` et ils sont tous caractérisés par des taux élevés d'urbanisation, d'emploi, de criminalité et de fiscalité locale ainsi que de croissance démographique plus ou moins marquée. Ce sont les départements les **plus urbanisés** et les plus riches en cadres et employés qualifiés.
+- La classe `verte` comprend des départements avec des profils **plutôt mixtes** puisque certains comme `Aude`, `Hautes Alpes` sont caractérisés par un fort taux de chômage alors que d'autres comme `Bouches du Rhône`, `Vaucluse` ont des taux d'emplois et de fiscalité plutôt élevés. Tous ces départements se situeraient au sud de la France et auraient une économie fortement marquée par le tourisme. Soulignons la présence à la fois de grandes métropoles ou pôles urbains tels que `Marseille` (Bouches du Rhône), `Montpellier` (Hérault), `Bordeaux` (Gironde) et de zones rurales ou montagneuses à proximité. C’est exactement ce que reflète leur position intermédiaire entre les départements les plus urbanisés et les départements les plus ruraux.
+- La classe `violet`, **la plus homogène**, comprend surtout les départements les plus ruraux comme `Ariège`, `Hautes Pyrénées`, `Lozère`, `Corrèze` et `Aveyron`. En termes de population, les habitants sont pour la plupart des vieux. Et ceci explique aussi que leurs parts d'artisans et d'agriculteurs soient les plus élevées. Par ailleurs, on dénote aussi un taux de chômage assez élevé dans ces départements.
+- Enfin, nous avons la classe `bleue` avec des départements comme `Pas de Calais`, `Oise`, `Haut Rhin`, `Haute Marne`, `Sarthe` ayant des populations **majoritairement jeunes** à l'opposé de la classe `violet`. Du fait de leur jeunesse, leur taux de fécondité est le plus élevé. Aussi, ces département sont caractérisés par une part d'ouvriers grande ou modérée pour certains.
+
+Dans l’ensemble, cette classification s’avère pertinente et très informative.
+
+Les classes sont bien différenciées, la cohésion interne est satisfaisante, et les profils socio-économiques mis en évidence sont cohérents avec la réalité territoriale française.
+
+La classe `verte` demeure la plus délicate à interpréter en raison de son hétérogénéité, mais celle-ci s’explique par la diversité économique propre aux départements du sud de la France.
+
+
+10. On pourrait essayer d'explorer une autre méthode: celle de l'**Indice de Calinski-Harabasz** pour déterminer le nombre optimal de clusters et la qualité de la classification:
+
+```{r}
+# Calcul des scores CH pour k allant 2 à 10
+k_range <- 2:10
+ch_scores <- sapply(k_range, function(k) {
+  km <- kmeans(coord_dept, centers = k, nstart = 25)
+  cluster.stats(dist(coord_dept), km$cluster)$ch
+})
+
+# Transformation en data.frame pour ggplot
+df_ch <- data.frame(
+  k = k_range,
+  CH = ch_scores
+)
+
+# Visualisation
+ggplot(df_ch, aes(x = k, y = CH)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red", size = 3) +
+  coord_cartesian(ylim = c(58, 73)) +
+  geom_text(aes(label = round(CH, 1)), vjust = -0.5, size = 3) +
+  scale_x_continuous(breaks = k_range) +
+  labs(title = "Indice de Calinski-Harabasz pour différents k",
+       x = "Nombre de clusters k",
+       y = "Score Calinski-Harabasz") +
+  theme_minimal()
+
+```
+
+- L'indice de Calinski-Harabasz nous suggère une meilleure classification pour un nombre optimal $k = 5$ clusters, où le score est maximal et vaut `71.9`.
+- Nous allons donc essayer avec 5 clusters.
+
+11. Réalisons la classification K-means avec **5 clusters** et visualisons les clusters sur le premier plan factoriel:
+
+```{r, fig.width=10, fig.height=8, dpi=300}
+
+# K-means avec k = 5
+set.seed(123)
+res2.kmeans <- kmeans(coord_dept, centers = 5, nstart = 100)
+
+# Data.frame avec coordonnées PCA, clusters et noms
+df_ind <- as.data.frame(coord_dept)
+df_ind$dept <- rownames(res.pca$ind$coord)
+df_ind$cluster <- factor(res2.kmeans$cluster)
+
+# Calcul des polygones convexes par cluster
+df_poly <- df_ind %>%
+  group_by(cluster) %>%
+  slice(chull(Dim.1, Dim.2)) %>%
+  ungroup()
+
+# Visualisation
+ggplot(df_ind, aes(x = Dim.1, y = Dim.2, color = cluster)) +
+  geom_point(size = 3) +
+  geom_text_repel(aes(label = dept), size = 3, max.overlaps = Inf) +
+  geom_polygon(data = df_poly, aes(x = Dim.1, y = Dim.2, fill = cluster),
+               alpha = 0.2, color = NA) +
+  # Ajout des variables
+  geom_segment(data = df_var,
+               aes(x = 0, y = 0, xend = Dim.1*mult, yend = Dim.2*mult),
+               arrow = arrow(length = unit(0.2, "cm")),
+               color = "red") +
+  geom_text_repel(data = df_var,
+                  aes(x = Dim.1*mult, y = Dim.2*mult, label = var),
+                  color = "red", size = 3) +
+  theme_minimal() +
+  labs(title = "Clusters des départements sur le premier plan factoriel (k = 5)")
+
+```
+Par rapport à la classification précédente, plusieurs changements sont notables:
+
+- Cinq classes sont identifiées, ce qui introduit un groupe supplémentaire par rapport à la solution précédente.
+- Les interprétations restent globalement les mêmes pour les classes d'avant. Par contre, la nouvelle classe `violet` devient encore plus atypique du fait de éloignement de ces départements par rapport aux autres.
+- La classe `bleue` d'avant a été scindée en 2 petites classes: une classe `jaune` et une nouvelle classe `bleue.`
+- La nouvelle classe `jaune` regrouperait des départements fortement caractérises par une économie industrielle entretenue par une part élevée d'ouvriers.
+- Tandis que la nouvelle classe `bleue` conserve l'ancien profil de départements majoritairement jeunes et plus ou moins industriels.
+
