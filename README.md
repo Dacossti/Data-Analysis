@@ -3,14 +3,12 @@
 ![RStudio](https://img.shields.io/badge/RStudio-75AADB?style=flat&logo=rstudio&logoColor=white)
 ![Status](https://img.shields.io/badge/status-completed-success?style=flat)
 
-## 🔬 Methods
 ![PCA](https://img.shields.io/badge/Method-PCA-orange?style=flat)
 ![CAH](https://img.shields.io/badge/Method-Hierarchical%20Clustering-orange?style=flat)
 ![KMeans](https://img.shields.io/badge/Method-K--Means-orange?style=flat)
 ![Silhouette](https://img.shields.io/badge/Validation-Silhouette-informational?style=flat)
 ![CH](https://img.shields.io/badge/Validation-Calinski--Harabasz-informational?style=flat)
 
-## 📦 R Packages
 ![FactoMineR](https://img.shields.io/badge/FactoMineR-Statistics-blueviolet?style=flat)
 ![factoextra](https://img.shields.io/badge/factoextra-Visualization-blueviolet?style=flat)
 ![ggplot2](https://img.shields.io/badge/ggplot2-Visualization-blueviolet?style=flat)
