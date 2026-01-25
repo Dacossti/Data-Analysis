@@ -647,13 +647,14 @@ fig5 = px.scatter(
 
 # Personnalisation de l'infobulle
 fig5.update_traces(
-    customdata=df_guns[df_guns["state"] == etat][["state", "year", indicateur_demo, indicateur_crime]],
+    customdata=df_guns[df_guns["state"] == etat][["state", "year", indicateur_crime,indicateur_demo, "population"]],
     hovertemplate=(
         "<span style='font-family:monospace;'>"
         f"{pad('État')} : " + "<b>%{customdata[0]}</b><br>"
         f"{pad('Année')} : " + "<b>%{customdata[1]}</b><br>"
-        f"{pad(indicateur_demo_label)} : " + "<b>%{customdata[2]:.2f}</b><br>"
-        f"{pad(indicateur_crime_label)} : " + "<b>%{customdata[3]:.2f}</b><br>"
+        f"{pad(indicateur_crime_label)} : " + "<b>%{customdata[2]:.2f}</b><br>"
+        f"{pad(indicateur_demo_label)} : " + "<b>%{customdata[3]:.2f}</b><br>"
+        f"{pad('Population')} : " + "<b>%{customdata[4]:,.2f} millions</b><br>"
         "</span><extra></extra>"
     )
 )
