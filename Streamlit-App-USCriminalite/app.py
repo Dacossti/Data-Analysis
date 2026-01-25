@@ -637,6 +637,7 @@ fig5 = px.scatter(
     y=indicateur_crime,
     color="year",
     color_continuous_scale="Viridis",
+    size="population",
     labels={indicateur_demo: indicateur_demo_label, 
             indicateur_crime: indicateur_crime_label,
             "year": "Année"},
