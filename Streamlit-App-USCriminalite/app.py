@@ -635,7 +635,11 @@ fig5 = px.scatter(
     df_guns[df_guns["state"] == etat],
     x=indicateur_demo,
     y=indicateur_crime,
-    labels={indicateur_demo: indicateur_demo_label, indicateur_crime: indicateur_crime_label},
+    color="year",
+    color_continuous_scale="Viridis",
+    labels={indicateur_demo: indicateur_demo_label, 
+            indicateur_crime: indicateur_crime_label,
+            "year": "Année"},
     title=f"{indicateur_demo_label} vs {indicateur_crime_label} à {etat} (1977-1999)",
     template="plotly_white"
 )
@@ -658,10 +662,14 @@ st.plotly_chart(fig5, width=800)
 
 # Commentaire sur le graphique
 st.markdown(f"""
-    - Dans notre premier exemple, le nuage de points illustre la relation entre l'`{indicateur_demo_label}` et l'`{indicateur_crime_label}` pour l'état de `{etat}`.
+    - Dans notre premier exemple par défaut, le nuage de points illustre la relation entre le `Pourcentage d'afro-américains` et l'Indicateur de Crimes violents pour l'état de `{etat}`.
     - Pour l'état de `District of Columbia`, la forme du nuage de points ne suggère aucunement une tendance positive entre le `Pourcentage d'afro-américains` et l'`Indicateur de Crimes violents`.
     - On observe des hausses et des baisses régulieres selon une période ou une autre, 
-    peut-être influencées par d'autres facteurs sociaux, économiques et historiques non pris en compte dans cette analyse.
+    peut-être influencées par d'autres facteurs sociaux et historiques non pris en compte dans cette analyse.
+    - Par contre, si on choisit pour ce même état l'indicateur démographique `Pourcentage d'afro-américains` et l'indicateur de crime `Nombre de prisonniers`,
+    on observe une relation négative claire entre les deux indicateurs.
+    - Cela suggère que dans le `District of Columbia`, une augmentation du `Pourcentage d'afro-américains` est associée à une diminution du `Nombre de prisonniers`.
+    - Cela pourrait refléter des dynamiques sociales spécifiques à cet État, mais il est important de noter que cette relation ne peut pas être généralisée sans une analyse plus approfondie.
 """)
 
 st.markdown("### Animation globale pour tous les états")
@@ -680,7 +688,10 @@ fig6 = px.scatter(
     color="state",
     animation_frame="year",
     animation_group="state",
-    labels={indicateur_demo: indicateur_demo_label, indicateur_crime: indicateur_crime_label},
+    labels={indicateur_demo: indicateur_demo_label, 
+            indicateur_crime: indicateur_crime_label, 
+            "state": "État"
+    },
     title=f"{indicateur_demo_label} vs {indicateur_crime_label} dans le temps",
     template="plotly_white"
 )
@@ -724,11 +735,11 @@ for trace in fig6.data:
 
 
 # Affichage dans Streamlit
-st.plotly_chart(fig6, width=800)
+st.plotly_chart(fig6, width=800, height=600)
 
 # Commentaire sur le graphique
 st.markdown(f"""
-    - Le graphique animé illustre l'évolution de la relation entre `{indicateur_demo_label}` et `{indicateur_crime_label}` pour tous les États américains de 1977 à 1999.
+    - L'animation illustre l'évolution de la relation entre `{indicateur_demo_label}` et `{indicateur_crime_label}` pour tous les États américains de 1977 à 1999.
     - La taille des points représente la population de chaque État.
     - On observe que la relation entre les deux indicateurs varie au fil des années, avec des tendances différentes selon les États et surtout non lineaires.
     - Par ailleurs, c'est intéressant de noter que, dans le cas de `Pourcentage d'afro-américains` vs `Indicateur de Crimes Violents`, si on ne faisait aucune distinction selon les états, on aurait pu conclure 
