@@ -635,12 +635,15 @@ fig5 = px.scatter(
     df_guns[df_guns["state"] == etat],
     x=indicateur_demo,
     y=indicateur_crime,
+    color="year",
+    color_continuous_scale=px.colors.sequential.Viridis,
     size="population",
     labels={indicateur_demo: indicateur_demo_label, 
             indicateur_crime: indicateur_crime_label,
             "year": "Année",
             "population": "Population"},
-    title=f"{indicateur_demo_label} vs {indicateur_crime_label} à {etat} (1977-1999)",
+    title=f"{indicateur_demo_label} vs {indicateur_crime_label} à {etat} (1977–1999)<br>"
+          "<sup>Taille des points proportionnelle à la population</sup>",
     template="plotly_white"
 )
 
