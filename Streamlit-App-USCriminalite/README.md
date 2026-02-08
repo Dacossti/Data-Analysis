@@ -66,20 +66,7 @@ Le dashboard permet de :
 - Animation de l’évolution temporelle des indicateurs  
 - Analyse des relations entre indicateurs démographiques et criminels  
 - Distribution des taux de crimes violents selon la présence de lois sur les armes  
-- Dashboard interactif et responsive  
-
----
-
-## 👨‍💻 Auteur
-
-<div style="display:flex; justify-content:space-around; align-items:center; width:600px;">
-  <div style="text-align:center;">
-    <img src="https://avatars.githubusercontent.com/u/104396909?v=4&size=64" width="60"/><br>
-    **Stave Icnel Dany OSIAS**<br>
-    [GitHub](https://github.com/Dacossti)<br>
-    [LinkedIn](https://www.linkedin.com/in/stave-icnel-dany-osias)
-  </div>
-</div>
+- Dashboard interactif et responsive
 
 ---
 
