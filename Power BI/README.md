@@ -21,8 +21,9 @@ Ces projets explorent des problématiques réelles à travers **data visualisati
 
 🔗 **Dashboards Power BI** 
 
-[Student Performance Dashboard](https://app.powerbi.com/groups/me/reports/53b5e1df-12d7-49df-8ac9-04a4d9b96c4f/9b5599aa242022140006?experience=power-bi)
-[AI Environmental Impact Dashboard](https://app.powerbi.com/groups/me/reports/d99ec42d-93de-44a8-96fa-d2359a8395d9/46ccbc08aad361085ee3?experience=power-bi)
+- [Student Performance Dashboard](https://app.powerbi.com/groups/me/reports/d99ec42d-93de-44a8-96fa-d2359a8395d9/46ccbc08aad361085ee3?experience=power-bi)
+
+- [AI Environmental Impact Dashboard](https://app.powerbi.com/groups/me/reports/53b5e1df-12d7-49df-8ac9-04a4d9b96c4f/9b5599aa242022140006?experience=power-bi)
 
 ---
 
