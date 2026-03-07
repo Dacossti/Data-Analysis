@@ -83,7 +83,7 @@ Le projet vise à :
 
 ## Cartographie des Datacenters en France
 
-![Dashboard Impact IA](images/impactIA.png)
+![Dashboard Impact IA](images/impactIA.gif)
 
 Le dashboard met en évidence :
 
@@ -188,7 +188,7 @@ Créer un **dashboard décisionnel universitaire** pour analyser :
 
 # 📊 Dashboard
 
-![Student Dashboard](images/etudiants.png)
+![Student Dashboard](images/students.gif)
 
 ---
 
