@@ -21,16 +21,15 @@ Ces projets explorent des problématiques réelles à travers **data visualisati
 
 🔗 **Dashboards Power BI** 
 
-- [Student Performance Dashboard](https://app.powerbi.com/groups/me/reports/d99ec42d-93de-44a8-96fa-d2359a8395d9/46ccbc08aad361085ee3?experience=power-bi)
-
 - [AI Environmental Impact Dashboard](https://app.powerbi.com/groups/me/reports/53b5e1df-12d7-49df-8ac9-04a4d9b96c4f/9b5599aa242022140006?experience=power-bi)
+- [Student Performance Dashboard](https://app.powerbi.com/groups/me/reports/d99ec42d-93de-44a8-96fa-d2359a8395d9/46ccbc08aad361085ee3?experience=power-bi)
 
 ---
 
 # 🌍 Projet 1 — Impact environnemental de l’IA générative
 
 ![Power BI](https://img.shields.io/badge/PowerBI-Visualization-yellow)
-![Open Data](https://img.shields.io/badge/Open%20Data-data.gouv.fr-blue)
+![Open Data University](https://img.shields.io/badge/Open%20Data-data.gouv.fr-blue)
 ![ADEME](https://img.shields.io/badge/ADEME-Project-green)
 
 ## 📖 Contexte
@@ -81,8 +80,6 @@ Le projet vise à :
 
 # 📊 Dashboard
 
-## Cartographie des Datacenters en France
-
 ![Dashboard Impact IA](images/impactIA.gif)
 
 Le dashboard met en évidence :
@@ -100,7 +97,7 @@ Le dashboard met en évidence :
 - nombre total de datacenters
 - datacenters par région
 
-Ces indicateurs montrent la **matérialité des infrastructures numériques**.
+Ces indicateurs montrent la **matérialité et la concentration des infrastructures numériques**.
 
 ---
 
