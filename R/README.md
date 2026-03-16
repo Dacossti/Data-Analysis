@@ -24,7 +24,7 @@
 
 ## Main project Overview
 
-[See report (pp. 121–137)](report/report.pdf)
+[See report](report/report_project.pdf)
 
 This project explores the **socio-economic structure of French departments** using **multivariate data analysis techniques**.
 
