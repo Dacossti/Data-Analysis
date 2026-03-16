@@ -1,0 +1,616 @@
+---
+title: "Analyse Socio-Économique des Départements Français"
+subtitle: "Rapport"
+author: "Stave Icnel Dany OSIAS"
+date: 2025-12-05
+lang: fr
+
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+  
+format:
+  html:
+    toc: true
+    theme: flatly
+    number-sections: false
+    code-fold: false
+    code-line-numbers: true
+    highlight-style: tango
+    css: style.css
+    embed-resources: true
+    self-contained: true
+
+  pdf:
+    pdf-engine: xelatex
+    number-sections: false
+    toc: false
+    toc-depth: 2
+    lof: false
+    lot: false
+    fontsize: 10pt
+    linestretch: 1
+    papersize: a4
+    documentclass: scrreprt
+
+    include-in-header:
+      text: |
+        \usepackage{xurl}
+        \usepackage{microtype}
+        \usepackage{enumitem}
+        \setlist[itemize]{label=\textbullet}
+        \emergencystretch=2em
+        \sloppy
+        \setlength{\parindent}{1em}
+        \setlength{\parskip}{0.2em}
+
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+              breaklines=true,
+              breakanywhere=true,
+              breaksymbolleft=,
+              breakindent=0pt,
+              commandchars=\\\{\},
+              xleftmargin=0em,
+              xrightmargin=0em
+          }
+        \fvset{fontsize=\small}
+
+        \usepackage[most]{tcolorbox}
+        \tcbuselibrary{listings,skins}
+        \newtcblisting{pythoncode}{
+            listing only,
+            listing engine=listings,
+            colback=white,
+            colframe=black,
+            sharp corners,
+            enhanced,
+            breakable,
+            boxrule=0.3mm,
+            left=2mm,
+            right=2mm,
+            top=1mm,
+            bottom=1mm,
+            listing options={
+              basicstyle=\ttfamily\small,
+              breaklines=true,
+              breakatwhitespace=true,
+              showstringspaces=false
+            }
+        }
+
+        \usepackage{fontspec}
+        \usepackage{indentfirst}
+        \usepackage{float}
+        \floatplacement{figure}{H}
+        \usepackage{amssymb}
+        \usepackage{titlesec}
+        \usepackage{xcolor}
+
+        % Définir couleur bleu marine pour les titres
+        \definecolor{navyblue}{RGB}{0,0,128}
+
+        % Map # to chapters, allow them to start on same page
+        \titleclass{\chapter}{straight}
+        \titleclass{\section}{straight}
+        \titleclass{\subsection}{straight}
+        \titleclass{\subsubsection}{straight}
+
+        % Autoriser les chapitres à commencer sur la même page
+        \KOMAoptions{open=any,toc=flat}
+
+        % Numérotation des sections/subsections
+        \setcounter{secnumdepth}{0}
+
+        % Hyperref pour liens colorés dans TOC/LOF/LOT
+        \usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+
+        % Définir polices pour les titres
+        \setkomafont{chapter}{\normalfont\bfseries}
+        \setkomafont{section}{\normalfont\bfseries}
+        \setkomafont{subsection}{\normalfont\bfseries}
+        \setkomafont{subsubsection}{\normalfont\bfseries}
+
+        % Title formatting, spacing, and color
+        \titleformat{\chapter}[hang]{\normalfont\Large\bfseries\color{navyblue}}{\thechapter}{1em}{}
+        \titlespacing*{\chapter}{0pt}{1.5ex plus .2ex minus .2ex}{1ex}
+
+        \titleformat{\section}[hang]{\normalfont\large\bfseries\color{navyblue}}{\thesection}{1em}{}
+        \titlespacing*{\section}{0pt}{1.25ex plus .2ex minus .2ex}{0.8ex}
+
+        \titleformat{\subsection}[hang]{\normalfont\normalsize\bfseries\color{navyblue}}{\thesubsection}{1em}{}
+        \titlespacing*{\subsection}{0pt}{1ex plus .2ex minus .2ex}{0.7ex}
+
+    mainfont: PT Serif
+    romanfont: PT Serif
+    sansfont: PT Sans
+    monofont: PT Mono
+    mainfontoptions:
+      - Ligatures=TeX
+    monofontoptions:
+      - Scale=0.9
+
+execute:
+  enabled: true
+  echo: false
+
+# localized captions
+figureTitle: "Fig."
+tableTitle: "Tableau"
+listingTitle: "Listing"
+lofTitle: "Liste de Figures"
+lotTitle: "Liste de tableaux"
+tocTitle: "Table des matières"
+lolTitle: "Listings"
+
+polyglossia-lang:
+  name: french
+---
+::: {.unnumbered}
+\clearpage
+:::
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(kableExtra)
+
+knitr::opts_chunk$set(
+  echo = FALSE,    # cache le code
+  message = FALSE, # cache les messages
+  warning = FALSE, # cache les warnings
+  fig.align = "center" # option pratique pour centrer les graphiques
+)
+
+# fonction utilitaire pour afficher mes tableaux 
+#print.table <- function(){}
+
+
+# fonction utilitaire pour afficher mes résumés statistiques (summary) dans mon pdf 
+print.summary <- function(s=NULL, df=NULL, caption = "Résumé statistique", digits = 2) {
+  
+  # summary d'une variable numérique
+  if(is.numeric(s)) {
+    df_summary <- data.frame(
+      Statistique = names(s),
+      Valeur = round(as.numeric(s), digits),
+      stringsAsFactors = FALSE
+    )
+    print(
+      kable(df_summary, caption = caption) %>%
+        kable_styling(full_width = FALSE, position = "center")
+    )
+    
+  # Cas 2 : summary d'un jeu de donnees avec des variables numériques
+  } else {
+    for(var in names(df)) {
+      print.summary(summary(df[[var]]), caption = paste("Résumé statistique de", var))
+    }
+  }
+}
+
+# fonction utilitaire pour afficher la structure de mes données (str) dans mon pdf
+print.str <- function(x, caption = "Structure des données") {
+  
+  # capturer la sortie texte de str()
+  s <- capture.output(str(x))
+  
+  # lignes correspondant aux variables
+  vars <- s[grepl("^ \\$", s)]
+  
+  # extraction des infos
+  df_str <- data.frame(
+    Variable = sub("^ \\$ ([^:]+):.*", "\\1", vars),
+    Type = sub("^.*: ([^ ]+).*", "\\1", vars),
+    Aperçu = sub("^.*?  ", "", vars),
+    stringsAsFactors = FALSE
+  )
+  
+  # affichage
+  kable(
+    df_str,
+    caption = caption,
+    col.names = c("Variable", "Type", "Valeurs")
+  ) %>%
+    kable_styling(
+      full_width = FALSE,
+      position = "center",
+      bootstrap_options = c("striped", "hover", "condensed")
+    )
+}
+
+
+
+
+
+```
+
+
+1. Chargeons les données `départements` et faisons un résumé descriptif standard, tout en affichant les premières observations:
+```{r, results='asis'}
+departements <- read.csv("departements.txt", sep="")
+print.str(departements)
+print.summary(df=departements)
+kable(round(head(departements), 2), caption="Aperçu des données `départements`")
+```
+
+- Notre jeu de données comprend 95 observations pour 15 variables toutes quantitatives. Ceci nous suggère déjà que la méthode d'analyse appropriée pour ce jeu de données est l'Analyse des Composantes Principales (ACP).
+- Mais, bien avant de réaliser l'ACP, remarquons d'abord que les variables `FISC`, `CRIM` et `FE90` prennent de très grandes valeurs. Ceci suggère la nécessité d'une standardisation des données.
+
+2. Standardisons nos données:
+```{r}
+departements.cr <- as.data.frame(scale(departements))
+
+kable(round(head(departements.cr), 1), caption="Aperçu des données `départements` standardisées")
+```
+
+3. Ajoutons les noms de tous les départements comme indices des lignes.
+
+Notons que dans le jeu de données, le nom du $20^{ème}$ département a été omis alors que les données correspondantes ont été bien enregistrées. On le notera par `Dept20`.
+```{r}
+# Noms de tous les départements sans le 20-ème
+noms_dept <- c(
+  "Ain","Aisne","Allier","Alpes Haute Provence","Hautes Alpes",
+  "Alpes Maritimes","Ardèche","Ardennes","Ariège","Aube",
+  "Aude","Aveyron","Bouches du Rhône","Calvados","Cantal",
+  "Charente","Charente Maritime","Cher","Corrèze", NA, "Côte d'Or",
+  "Côtes du Nord","Creuse","Dordogne","Doubs","Drôme",
+  "Eure","Eure et Loir","Finistère","Gard","Haute Garonne",
+  "Gers","Gironde","Hérault","Ille-et-Vilaine","Indre",
+  "Indre et Loire","Isère","Jura","Landes","Loir et Cher",
+  "Loire","Haute Loire","Loire Atlantique","Loiret","Lot",
+  "Lot et Garonne","Lozère","Maine et Loire","Manche","Marne",
+  "Haute Marne","Mayenne","Meurthe et Moselle","Meuse","Morbihan",
+  "Moselle","Nièvre","Nord","Oise","Orne","Pas de Calais",
+  "Puy de Dôme","Pyrénées Atlantiques","Hautes Pyrénées",
+  "Pyrénées Orientales","Bas Rhin","Haut Rhin","Rhône",
+  "Haute Saône","Saône et Loire","Sarthe","Savoie","Haute Savoie",
+  "Paris","Seine Maritime","Seine et Marne","Yvelines","Deux Sèvres",
+  "Somme","Tarn","Tarn et Garonne","Var","Vaucluse","Vendée",
+  "Vienne","Haute Vienne","Vosges","Yonne","Territoire Belfort",
+  "Essonne","Hauts de Seine","Seine Saint Denis","Val de Marne","Val d'Oise"
+)
+
+# Ajout du 20-ème en tant que Dept20
+noms_dept[20] <- "Dept20"
+rownames(departements.cr) <- noms_dept
+
+# Aperçu avec les 10 premières variables pour un meilleur rendu
+kable(round(head(departements.cr[, 1:10]), 2), caption="Aperçu des données `départements` avec les noms ")
+```
+
+4. Analysons les corrélations entre les variables socioéconomiques:
+```{r, fig.width=10, fig.height=8, dpi=300, out.width="\\linewidth"}
+# Calcul des corrélations (en excluant les noms DEPT)
+matrice_cor <- cor(departements.cr, use="pairwise.complete.obs")
+
+# Visualisation avec corrplot
+library(corrplot)
+
+corrplot(matrice_cor, method="color", type="upper", 
+         tl.cex=0.8, addCoef.col="black", number.cex=0.7)
+
+```
+
+
+On peut remarquer que certaines variables sont fortement liées et de manière logique:
+
+- Les variables `AGE` et `JEUN` sont fortement corrélées négativement: ce qui est cohérent puisque plus il y a de jeunes, moins il y a de personnes âgées.
+- Les variables `URBR` (urbanisation) et `AGRI` (agriculteur) sont aussi fortement corrélées négativement: ce qui est encore logique géographiquement puisqu'en pratique, les agriculteurs ne vivent pas dans les milieux urbains.
+- Par ailleurs, les variables`PROF` et `URBR` , tout comme `CADR` et `URBR`sont positivement corrélées: c'est encore logique car dans les zones urbaines, il y a généralement plus de cadres supérieurs et plus de professions intermédiaires.
+- Les variables `CRIM` et `URBR` sont aussi fortement corrélées positivement: ce qui suggère logiquement que le taux de criminalité est plus élevé dan les zones urbaines.
+- Et pour finir, les variables `AGE` et `FE90` sont fortement corrélées négativement: ce qui suggère logiquement que le taux de fécondité devient plus faible quand la part de personnes âgées augmente. 
+- A l'inverse, les variables `JEUN` et `FE90` sont, en effet, fortement corrélées positivement car plus il y a de jeunes, plus il y a de naissances et donc, plus le taux de fécondité augmente.
+
+5. Visualisons les nuages de points par paire pour mettre en évidence ces relations:
+```{r, fig.width=10, fig.height=8, dpi=300, out.width="\\linewidth"}
+# Identifier les paires fortement corrélées
+seuil <- 0.7
+paires_fortes <- which(abs(matrice_cor) >= seuil & abs(matrice_cor) < 1, arr.ind = TRUE)
+
+# Supprimer les doublons (symétrie de la matrice)
+paires_fortes <- paires_fortes[paires_fortes[,1] < paires_fortes[,2], ]
+
+# Extraire les noms des variables fortement corrélée à partir des indices
+vars_fortes <- unique(c(rownames(matrice_cor)[paires_fortes[,1]],
+                        colnames(matrice_cor)[paires_fortes[,2]]))
+
+# Pairs plot
+pairs(departements.cr[ , vars_fortes],
+      main="Nuages de points des variables fortement corrélées",
+      pch=19, col="blue")
+
+```
+
+
+- Les nuages de points confirment, en effet, l’existence de corrélations fortement positives ou fortement négatives entre certaines de nos variables socioéconomiques. Ces relations mettent en évidence des redondances dans l’information contenue dans le jeu de données.
+- D’où la nécessité de réaliser une Analyse des Composantes Principales sur notre jeu de données afin de réduire la dimensionalité, de synthétiser l’information et de limiter l'effet de ces corrélations.
+
+6. Réalisons donc une ACP sur notre jeu de données `départements` standardisées:
+```{r}
+library(FactoMineR)
+library(factoextra)
+
+# Réalisation de l'ACP sur nos 15 variables quantitatives
+res.pca <- PCA(departements.cr,  # variables quantitatives
+               scale.unit = FALSE,       # données déjà standardisées
+               graph = FALSE)
+
+# Composantes Principales de l'ACP
+fviz_eig(res.pca, addlabels = TRUE) +
+  coord_cartesian(ylim = c(0, 46))
+```
+
+
+- Pour nos analyses ultérieures, nous retiendrons les **3 premières composantes principales**, qui expliquent ensemble 75,9% de la variance totale.
+- Chacune de ces composantes possède une valeur propre supérieure à 1, ce qui signifie qu’elle explique une part de variance supérieure à celle d’une variable d'origine.
+- La méthode du coude (critère de Kaiser), appliquée sur le screeplot des valeurs propres, suggère également que les 3 premières composantes suffisent pour expliquer l’essentiel de l’information contenue dans les données.
+
+```{r, fig.width=10, fig.height=8, dpi=300, out.width="\\linewidth"}
+# Graphique des départements sur le premier plan factoriel
+fviz_pca_ind(res.pca,
+             axes = c(1,2),
+             repel = TRUE,
+             geom = c("point", "text"),
+             label = "ind",
+             col.ind = "blue",
+             labelsize = 0.5,
+             title = "Plan factoriel des départements")
+
+```
+
+
+En analysant le plan factoriel des individus, on peut dire que:
+
+- Les départements comme `Gers`, `Dordogne`, `Cantal`, `Lot` et `Aveyron` sont très proches et donc, ils ont des profils socio-économiques similaires.
+- De même, d'autres départements comme `Essonne`, `Yvelines`, `Seine Saint Denis` et `Val d'Oise` ont aussi des profils socio-économiques similaires. 
+- Par ailleurs, les départements `Paris` et `Alpes Maritimes` présentent un profil socio-économique atypique par rapport aux autres départements, le reste formant un nuage relativement rond.
+
+
+```{r}
+# Contributions des variables sur le premier plan factoriel
+fviz_contrib(res.pca, choice = "var", axes = c(1,2),
+             fill = "blue",
+             title = "Contributions des variables au premier plan factoriel")
+
+# Graphique des variables sur le premier plan factoriel
+fviz_pca_var(res.pca,
+             axes = c(1,2),
+             col.var = "contrib",
+             gradient.cols = c("blue","orange","red"),
+             repel = TRUE,
+             title = "Plan factoriel des variables")
+
+```
+
+On peut vite remarquer que:
+
+- Les 6 variables les plus contributives au premier plan factoriel sont les variables `AGE`, `JEUN`, `URBR`, `PROF`, `AGRI` et `CRIM` et celle qui contribue le moins est `CHOM`.
+- Les variables `FISC`, `CRIM`, `EMPL`, `CADR`, `ETRA`, `URBR`, `PROF` et `TXCR` pointent globalement vers la même direction. Cela indique que ces variables sont  fortement corrélées positivement et donc, les départements qui présentent un taux élevé pour l’une tendent également à présenter des valeurs élevées pour les autres.
+- Par ailleurs, les variables `AGE`, `ARTI` et `CHOM` pointent plutôt en direction opposée par rapport à `JEUN` et `FE90`: ces relations ont, d'aileurs, été mises en évidence un peu plus tôt dans le rapport.
+
+
+```{r, fig.width=10, fig.height=8, dpi=300, out.width="\\linewidth"}
+# biplot des départements et des variables sur le premier plan factoriel
+
+fviz_pca_biplot(res.pca,
+                axes = c(1,2),
+                repel = TRUE,
+                col.ind = "blue",
+                col.var = "orange",
+                title = "Biplot des départements avec les variables")
+```
+
+
+- Comme nous l'avions souligné précédemment, les départements tels que `Haut de Seine`, `Val de Marne`, `Bouche du Rhone`, `Rhone` et `Savoie` et `Isère`, qui présentent un taux élevé d'urbanisation, tendent également à présenter des taux élevés d'emploi, de criminalité et de fiscalité locale ainsi que de croissance démographique plus ou moins marquée. Ces départements se distinguent ainsi par un profil socio-économique plus marqué en termes de population active qualifiée, urbanisation, fiscalité et criminalité.
+- Ces départements présentent aussi des parts élevés d'employés, de cadres supérieurs et d'étrangers,  ces derniers étant souvent attirés par des opportunités d'emploi ou le tourisme.
+- D'autres départements, comme `Pyrénées Atlantiques`, `Alpes Hautes Provences`, `Aude` et `Hautes Alpes`, seraient caractérisés par un fort taux de chômage.
+- Et, par ailleurs, d'autres comme `Marne`, `Doubs`, `Pas de Calais` et `Ain` sont caractérisés par une part élevée de jeunes.
+
+En gros, l'axe 1 oppose les départements les plus urbanisés aux départements les plus ruraux tandis que l'axe 2 oppose les départements majoritairement jeunes des départements majoritairement vieux. 
+
+On pourrait même dire que l'axe  1 oppose les départements dont l’économie est fortement influencée par le secteur primaire de ceux dont l’économie est surtout marquée par les secteurs tertiaires et quaternaires.
+
+
+7. Maintenant que nous avons réalisé une ACP sur nos données et choisi de retenir les 3 premières composantes principales, procédons à une **Classification Ascendante Hiérarchique** afin de regrouper les départements présentant des profils socio-économiques similaires:
+
+```{r, fig.width=10, fig.height=8, dpi=300, out.width="\\linewidth"}
+# Extraction des coordonnées des individus sur les 3 premières composantes principales
+coord_dept <- res.pca$ind$coord[, 1:3]
+
+# Calcul de la distance euclidienne entre les départements
+dist_dept <- dist(coord_dept)
+
+# Classification ascendante hiérarchique avec la methode de Ward
+cah <- hclust(dist_dept, method = "ward.D2")
+
+# Visualisation du dendrogramme
+fviz_dend(cah,
+          k = 4,                    # nombre de clusters (qu'on consolidera plus tard)
+          rect = TRUE,              
+          rect_fill = TRUE,         
+          rect_border = "lightgreen",  
+          labels_track_height = 0.8,
+          cex = 0.7,                
+          main = "Dendrogramme - CAH des départements",
+          xlab = "Départements",
+          ylab = "Distance") 
+```
+
+
+Sans surprise, on remarque que:
+
+- Les départements comme `Paris`, `Rhône`, `Isère`, `Savoie`, `Val de Marne` et `Hauts de Seine` se retrouvent dans le même groupe. 
+- En même temps, si on coupait l'arbre plus bas, Paris se serait retouvé tout seul et cela mettrait encore l'emphase sur le fait qu'il s'agit d'un département plutôt atypique.
+- Le 20-ème département dont le nom nous est inconnu se retrouve dans le premier groupe avec `Pyrénées Orientales`, `Alpes Hautes Provence`, `Aude` etc...
+- Le cluster `bleu` est le plus représenté dans l’échantillon ; il regroupe N individus, ce qui en fait le cluster majoritaire. 
+
+8. On va compléter notre analyse par une `consolidation par K-means` et l’évaluation par la méthode de la silhouette pour déterminer le nombre optimal de clusters et la qualité de la classification:
+```{r}
+library(cluster)
+library(factoextra)
+
+# Tester k = 2 à 10 clusters
+res <- fviz_nbclust(coord_dept, kmeans, method = "silhouette", k.max = 10, nstart = 50)
+
+# Ajouter les valeurs de silhouette sur le graphique
+res + 
+  geom_text(aes(label=round(y,3)), vjust=-0.5) +  # affiche les scores au-dessus des points
+  coord_cartesian(ylim = c(0, 0.45)) +
+  theme_minimal() +
+  ggtitle("Score moyen de la silhouette par nombre de clusters")
+
+
+```
+
+- Ici, pour $k = 4$ clusters, le score est maximal mais reste faible.
+- Nous essaierons quand même avec 4 clusters.
+
+9. Réalisons la classification K-means avec **4 clusters** et visualisons les clusters sur le premier plan factoriel:
+```{r, fig.width=10, fig.height=8, dpi=300, out.width="\\linewidth"}
+library(ggrepel)
+library(ggplot2)
+library(dplyr) 
+
+set.seed(123)
+res.kmeans <- kmeans(coord_dept, centers = 4, nstart = 100)
+
+
+# Data.frame avec coordonnées PCA, clusters et noms
+df_ind <- as.data.frame(res.pca$ind$coord[, 1:2])
+df_ind$dept <- rownames(res.pca$ind$coord)
+df_ind$cluster <- factor(res.kmeans$cluster)
+
+# Data.frame pour les variables
+df_var <- as.data.frame(res.pca$var$coord[, 1:2])
+df_var$var <- rownames(res.pca$var$coord)
+
+# polygones convexes pour les clusters
+df_poly <- df_ind %>%
+  group_by(cluster) %>%
+  slice(chull(Dim.1, Dim.2)) %>%
+  ungroup()
+
+# Calcul du facteur d'échelle
+max_ind <- max(abs(df_ind[,1:2]))
+max_var <- max(abs(df_var[,1:2]))
+mult <- max_ind / max_var * 0.7
+
+ggplot(df_ind, aes(x = Dim.1, y = Dim.2, color = cluster)) +
+  geom_point(size = 3) +
+  geom_text_repel(aes(label = dept), size = 3, max.overlaps = Inf) +
+  geom_polygon(data = df_poly, aes(x = Dim.1, y = Dim.2, fill = cluster),
+               alpha = 0.2, color = NA) +
+  
+  # Ajout des variables
+  geom_segment(data = df_var,
+               aes(x = 0, y = 0, xend = Dim.1*mult, yend = Dim.2*mult),
+               arrow = arrow(length = unit(0.2, "cm")),
+               color = "red") +
+  geom_text_repel(data = df_var,
+                  aes(x = Dim.1*mult, y = Dim.2*mult, label = var),
+                  color = "red", size = 3) +
+  theme_minimal() +
+  labs(title = "Clusters des départements sur le premier plan factoriel")
+
+
+```
+
+Nous pouvons observer globalement que:
+
+- Les polygones convexes délimitent correctement les 4 groupes, avec un chevauchement minimal.
+
+Et si on interprétait les classes:
+
+- La classe `rouge` comprend des départements comme `Paris`, `Rhône`, `Isère`, `Savoie`, `Val de Marne` et `Hauts de Seine` et ils sont tous caractérisés par des taux élevés d'urbanisation, d'emploi, de criminalité et de fiscalité locale ainsi que de croissance démographique plus ou moins marquée. Ce sont les départements les **plus urbanisés** et les plus riches en cadres et employés qualifiés.
+- La classe `verte` comprend des départements avec des profils **plutôt mixtes** puisque certains comme `Aude`, `Hautes Alpes` sont caractérisés par un fort taux de chômage alors que d'autres comme `Bouches du Rhône`, `Vaucluse` ont des taux d'emplois et de fiscalité plutôt élevés. Tous ces départements se situeraient au sud de la France et auraient une économie fortement marquée par le tourisme. Soulignons la présence à la fois de grandes métropoles ou pôles urbains tels que `Marseille` (Bouches du Rhône), `Montpellier` (Hérault), `Bordeaux` (Gironde) et de zones rurales ou montagneuses à proximité. C’est exactement ce que reflète leur position intermédiaire entre les départements les plus urbanisés et les départements les plus ruraux.
+- La classe `violet`, **la plus homogène**, comprend surtout les départements les plus ruraux comme `Ariège`, `Hautes Pyrénées`, `Lozère`, `Corrèze` et `Aveyron`. En termes de population, les habitants sont pour la plupart des vieux. Et ceci explique aussi que leurs parts d'artisans et d'agriculteurs soient les plus élevées. Par ailleurs, on dénote aussi un taux de chômage assez élevé dans ces départements.
+- Enfin, nous avons la classe `bleue` avec des départements comme `Pas de Calais`, `Oise`, `Haut Rhin`, `Haute Marne`, `Sarthe` ayant des populations **majoritairement jeunes** à l'opposé de la classe `violet`. Du fait de leur jeunesse, leur taux de fécondité est le plus élevé. Aussi, ces département sont caractérisés par une part d'ouvriers grande ou modérée pour certains.
+
+Dans l’ensemble, cette classification s’avère pertinente et très informative.
+
+Les classes sont bien différenciées, la cohésion interne est satisfaisante, et les profils socio-économiques mis en évidence sont cohérents avec la réalité territoriale française.
+
+La classe `verte` demeure la plus délicate à interpréter en raison de son hétérogénéité, mais celle-ci s’explique par la diversité économique propre aux départements du sud de la France.
+
+
+10. On pourrait essayer d'explorer une autre méthode: celle de l'**Indice de Calinski-Harabasz** pour déterminer le nombre optimal de clusters et la qualité de la classification:
+
+```{r}
+library(fpc)
+
+# Calcul des scores CH pour k allant 2 à 10
+k_range <- 2:10
+ch_scores <- sapply(k_range, function(k) {
+  km <- kmeans(coord_dept, centers = k, nstart = 25)
+  cluster.stats(dist(coord_dept), km$cluster)$ch
+})
+
+# Transformation en data.frame pour ggplot
+df_ch <- data.frame(
+  k = k_range,
+  CH = ch_scores
+)
+
+# Visualisation
+ggplot(df_ch, aes(x = k, y = CH)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red", size = 3) +
+  coord_cartesian(ylim = c(58, 73)) +
+  geom_text(aes(label = round(CH, 1)), vjust = -0.5, size = 3) +
+  scale_x_continuous(breaks = k_range) +
+  labs(title = "Indice de Calinski-Harabasz pour différents k",
+       x = "Nombre de clusters k",
+       y = "Score Calinski-Harabasz") +
+  theme_minimal()
+
+```
+
+- L'indice de Calinski-Harabasz nous suggère une meilleure classification pour un nombre optimal $k = 5$ clusters, où le score est maximal et vaut `71.9`.
+- Nous allons donc essayer avec 5 clusters.
+
+11. Réalisons la classification K-means avec **5 clusters** et visualisons les clusters sur le premier plan factoriel:
+
+```{r, fig.width=10, fig.height=8, dpi=300, out.width="\\linewidth"}
+
+# K-means avec k = 5
+set.seed(123)
+res2.kmeans <- kmeans(coord_dept, centers = 5, nstart = 100)
+
+# Data.frame avec coordonnées PCA, clusters et noms
+df_ind <- as.data.frame(coord_dept)
+df_ind$dept <- rownames(res.pca$ind$coord)
+df_ind$cluster <- factor(res2.kmeans$cluster)
+
+# Calcul des polygones convexes par cluster
+df_poly <- df_ind %>%
+  group_by(cluster) %>%
+  slice(chull(Dim.1, Dim.2)) %>%
+  ungroup()
+
+# Visualisation
+ggplot(df_ind, aes(x = Dim.1, y = Dim.2, color = cluster)) +
+  geom_point(size = 3) +
+  geom_text_repel(aes(label = dept), size = 3, max.overlaps = Inf) +
+  geom_polygon(data = df_poly, aes(x = Dim.1, y = Dim.2, fill = cluster),
+               alpha = 0.2, color = NA) +
+  # Ajout des variables
+  geom_segment(data = df_var,
+               aes(x = 0, y = 0, xend = Dim.1*mult, yend = Dim.2*mult),
+               arrow = arrow(length = unit(0.2, "cm")),
+               color = "red") +
+  geom_text_repel(data = df_var,
+                  aes(x = Dim.1*mult, y = Dim.2*mult, label = var),
+                  color = "red", size = 3) +
+  theme_minimal() +
+  labs(title = "Clusters des départements sur le premier plan factoriel (k = 5)")
+
+```
+Par rapport à la classification précédente, plusieurs changements sont notables:
+
+- Cinq classes sont identifiées, ce qui introduit un groupe supplémentaire par rapport à la solution précédente.
+- Les interprétations restent globalement les mêmes pour les classes d'avant. Par contre, la nouvelle classe `violet` devient encore plus atypique du fait de éloignement de ces départements par rapport aux autres.
+- La classe `bleue` d'avant a été scindée en 2 petites classes: une classe `jaune` et une nouvelle classe `bleue.`
+- La nouvelle classe `jaune` regrouperait des départements fortement caractérises par une économie industrielle entretenue par une part élevée d'ouvriers.
+- Tandis que la nouvelle classe `bleue` conserve l'ancien profil de départements majoritairement jeunes et plus ou moins industriels.
